@@ -116,6 +116,18 @@ body{
     font-size:16px;
 }
 
+.login-error{
+    border:1px solid #fecdd3;
+    border-radius:12px;
+    background:#fff1f2;
+    color:#be123c;
+    padding:12px 14px;
+    margin-bottom:18px;
+    font-size:14px;
+    font-weight:700;
+    text-align:center;
+}
+
 /* ===========================
    INPUTS
 =========================== */

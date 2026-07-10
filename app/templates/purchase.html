@@ -1,148 +1,296 @@
 {% extends "base.html" %}
 
+{% block page_title %}
+Purchase
+{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/purchase.css">
 {% endblock %}
 
 {% block content %}
+
 <div class="purchase-page">
 
-    <!-- Header -->
-    <div class="purchase-header">
+    <section class="purchase-hero">
+
         <div>
+            <span class="purchase-kicker">Procurement Desk</span>
             <h1>Purchase Management</h1>
-            <p>Manage Purchase Invoices & Supplier Orders</p>
+            <p>
+                Track supplier invoices, purchase totals, date filters and procurement activity from one focused workspace.
+            </p>
         </div>
 
-        <a href="/purchase/add" class="btn-add">
-            + Add Purchase
+        <a href="/purchase/add" class="btn-add-purchase">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Purchase</span>
         </a>
-    </div>
 
-    <!-- Statistics Cards -->
-    <div class="stats-grid">
+    </section>
 
-        <div class="stat-card">
-            <h3>Total Purchases</h3>
-            <h2>{{ purchase_count or 0 }}</h2>
+    <section class="purchase-summary">
+
+        <div class="purchase-summary-tile">
+            <div class="purchase-summary-icon icon-amber">
+                <i class="bi bi-cart-check"></i>
+            </div>
+
+            <div>
+                <span>Total Purchases</span>
+                <strong>{{ purchase_count or 0 }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Total Amount</h3>
-            <h2>₹ {{ purchase_amount or 0 }}</h2>
+        <div class="purchase-summary-tile">
+            <div class="purchase-summary-icon icon-emerald">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+
+            <div>
+                <span>Total Amount</span>
+                <strong>&#8377; {{ "%.2f"|format(purchase_amount or 0) }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Suppliers</h3>
-            <h2>{{ supplier_count or 0 }}</h2>
+        <div class="purchase-summary-tile">
+            <div class="purchase-summary-icon icon-blue">
+                <i class="bi bi-truck"></i>
+            </div>
+
+            <div>
+                <span>Suppliers</span>
+                <strong>{{ supplier_count or 0 }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Today Purchase</h3>
-            <h2>₹ {{ today_amount or 0 }}</h2>
+        <div class="purchase-summary-tile">
+            <div class="purchase-summary-icon icon-violet">
+                <i class="bi bi-calendar2-check"></i>
+            </div>
+
+            <div>
+                <span>Today Purchase</span>
+                <strong>&#8377; {{ "%.2f"|format(today_amount or 0) }}</strong>
+            </div>
         </div>
 
-    </div>
+    </section>
 
-    <!-- Filter Card -->
+    <section class="purchase-filter-panel">
 
-    <div class="filter-card">
+        <form method="get" action="/purchase" class="purchase-filter-form">
 
-        <form method="get" action="/purchase">
-
-            <div class="filter-group">
-
-                <div>
-                    <label>From Date</label>
+            <div class="purchase-filter-field">
+                <label>From Date</label>
+                <div class="purchase-input-shell">
+                    <i class="bi bi-calendar3"></i>
                     <input type="date" name="from_date" value="{{ from_date }}">
                 </div>
+            </div>
 
-                <div>
-                    <label>To Date</label>
+            <div class="purchase-filter-field">
+                <label>To Date</label>
+                <div class="purchase-input-shell">
+                    <i class="bi bi-calendar3"></i>
                     <input type="date" name="to_date" value="{{ to_date }}">
                 </div>
+            </div>
 
-                <div>
-                    <button type="submit" class="btn-search">
-                        Search
+            <button type="submit" class="btn-purchase-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+
+        </form>
+
+    </section>
+
+    <section class="purchase-panel">
+
+        <div class="purchase-panel-header">
+
+            <div>
+                <span class="purchase-panel-label">Purchase Register</span>
+                <h2>Purchase Invoices</h2>
+            </div>
+
+            <span class="purchase-record-count">
+                {{ purchases|length }} Records
+            </span>
+
+        </div>
+
+        <div class="purchase-table-wrap">
+
+            <table class="purchase-table">
+
+                <thead>
+                    <tr>
+                        <th>Purchase No</th>
+                        <th>Date</th>
+                        <th>Supplier</th>
+                        <th>Invoice No</th>
+                        <th>Total Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for row in purchases %}
+
+                    <tr>
+
+                        <td>
+                            <span class="purchase-no-pill">
+                                {{ row.purchase_no }}
+                            </span>
+                        </td>
+
+                        <td>{{ row.purchase_date }}</td>
+
+                        <td>
+                            <div class="purchase-supplier-cell">
+                                <span class="purchase-supplier-avatar">
+                                    {{ row.supplier_name[:1]|upper if row.supplier_name else "S" }}
+                                </span>
+                                <strong>{{ row.supplier_name or "Unknown Supplier" }}</strong>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="invoice-badge">
+                                {{ row.invoice_no or "-" }}
+                            </span>
+                        </td>
+
+                        <td class="purchase-amount-cell">
+                            &#8377; {{ "%.2f"|format(row.grand_total or 0) }}
+                        </td>
+
+                        <td>
+                            <div class="purchase-action-group">
+                                <a href="/purchase/edit/{{ row.purchase_id }}"
+                                   class="purchase-table-action purchase-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/purchase/delete/{{ row.purchase_id }}"
+                                   class="purchase-table-action purchase-delete-action"
+                                   data-delete-purchase
+                                   data-purchase-no="{{ row.purchase_no }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="6">
+                            <div class="purchase-empty-state">
+                                <i class="bi bi-cart-x"></i>
+                                <strong>No purchases found</strong>
+                                <span>Try changing the date range or add your first purchase invoice.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade purchase-delete-modal"
+     id="deletePurchaseModal"
+     tabindex="-1"
+     aria-labelledby="deletePurchaseModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="purchase-delete-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="purchase-delete-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deletePurchaseModalLabel">
+                    Delete purchase?
+                </h3>
+
+                <p>
+                    <strong id="deletePurchaseNo">This purchase</strong>
+                    will be removed from the purchase register. This action cannot be undone.
+                </p>
+
+                <div class="purchase-delete-actions">
+                    <button type="button"
+                            class="btn-purchase-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
                     </button>
+
+                    <a href="#"
+                       class="btn-purchase-modal-delete"
+                       id="confirmDeletePurchase">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Purchase</span>
+                    </a>
                 </div>
 
             </div>
 
-        </form>
-
-    </div>
-
-    <!-- Purchase Table -->
-
-    <div class="table-card">
-
-        <table class="purchase-table">
-
-            <thead>
-                <tr>
-                    <th>Purchase No</th>
-                    <th>Date</th>
-                    <th>Supplier</th>
-                    <th>Invoice No</th>
-                    <th>Total Amount</th>
-                    <th width="180">Actions</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {% for row in purchases %}
-
-                <tr>
-
-                    <td>{{ row.purchase_no }}</td>
-
-                    <td>{{ row.purchase_date }}</td>
-
-                    <td>{{ row.supplier_name }}</td>
-
-                    <td>{{ row.invoice_no }}</td>
-
-                    <td>₹ {{ row.grand_total }}</td>
-
-                    <td>
-                        <div class="action-buttons">
-                            <a href="/purchase/edit/{{ row.purchase_id }}" class="btn-edit">
-                                Edit
-                            </a>
-
-                            <a href="/purchase/delete/{{ row.purchase_id }}" class="btn-delete"
-                                onclick="return confirm('Delete this Purchase ?')">
-                                Delete
-                            </a>
-                        </div>
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
+        </div>
 
     </div>
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+
 <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deletePurchaseModal");
+    const confirmButton = document.getElementById("confirmDeletePurchase");
+    const purchaseNo = document.getElementById("deletePurchaseNo");
 
-    let materialsOptions = `
-{% for m in materials %}
-<option value="{{ m.id }}">
-    {{ m.material_name }}
-</option>
-{% endfor %}
-`;
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
 
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-purchase]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            purchaseNo.textContent = link.dataset.purchaseNo || "This purchase";
+            deleteModal.show();
+        });
+    });
+});
 </script>
 
-<script src="/static/js/purchase_add.js"></script>
 {% endblock %}

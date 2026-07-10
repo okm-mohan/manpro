@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi import UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -6,6 +7,9 @@ from app.database import SessionLocal
 from fastapi import Form
 from fastapi.responses import RedirectResponse
 from datetime import date, timedelta
+import calendar
+import os
+import uuid
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi import Form
@@ -49,6 +53,16 @@ def hash_password(password):
 templates = Jinja2Templates(env=env)
 
 
+def is_admin_user(request: Request):
+    return request.session.get("role", "Admin") == "Admin"
+
+
+def admin_only_redirect(request: Request):
+    if not is_admin_user(request):
+        return RedirectResponse("/dashboard", status_code=303)
+    return None
+
+
 @app.get("/")
 async def home(request: Request):
 
@@ -63,18 +77,154 @@ async def dashboard(request: Request):
     if "user" not in request.session:
         return RedirectResponse(url="/login", status_code=303)
 
+    db = SessionLocal()
+
+    today_sales = db.execute(text("""
+        SELECT IFNULL(SUM(grand_total),0)
+        FROM sales
+        WHERE sale_date = CURDATE()
+    """)).scalar()
+
+    today_purchase = db.execute(text("""
+        SELECT IFNULL(SUM(grand_total),0)
+        FROM purchase
+        WHERE purchase_date = CURDATE()
+    """)).scalar()
+
+    month_sales = db.execute(text("""
+        SELECT IFNULL(SUM(grand_total),0)
+        FROM sales
+        WHERE MONTH(sale_date) = MONTH(CURDATE())
+        AND YEAR(sale_date) = YEAR(CURDATE())
+    """)).scalar()
+
+    month_purchase = db.execute(text("""
+        SELECT IFNULL(SUM(grand_total),0)
+        FROM purchase
+        WHERE MONTH(purchase_date) = MONTH(CURDATE())
+        AND YEAR(purchase_date) = YEAR(CURDATE())
+    """)).scalar()
+
+    has_supplier_payments = db.execute(text("""
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        AND table_name = 'supplier_payments'
+    """)).scalar()
+
+    has_customer_payments = db.execute(text("""
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        AND table_name = 'customer_payments'
+    """)).scalar()
+
+    if has_supplier_payments:
+        pending_supplier = db.execute(text("""
+            SELECT
+                IFNULL(p.purchase_amount,0) - IFNULL(pay.paid_amount,0)
+            FROM
+            (
+                SELECT IFNULL(SUM(grand_total),0) AS purchase_amount
+                FROM purchase
+            ) p
+            CROSS JOIN
+            (
+                SELECT IFNULL(SUM(amount),0) AS paid_amount
+                FROM supplier_payments
+            ) pay
+        """)).scalar()
+    else:
+        pending_supplier = 0
+
+    if has_customer_payments:
+        pending_customer = db.execute(text("""
+            SELECT
+                IFNULL(s.sale_amount,0) - IFNULL(pay.received_amount,0)
+            FROM
+            (
+                SELECT IFNULL(SUM(grand_total),0) AS sale_amount
+                FROM sales
+            ) s
+            CROSS JOIN
+            (
+                SELECT IFNULL(SUM(amount),0) AS received_amount
+                FROM customer_payments
+            ) pay
+        """)).scalar()
+    else:
+        pending_customer = 0
+
+    recent_sales = db.execute(text("""
+        SELECT
+            s.invoice_number,
+            s.sale_date,
+            c.customer_name,
+            s.grand_total
+        FROM sales s
+        LEFT JOIN customers c
+            ON c.id = s.customer_id
+        ORDER BY s.sale_date DESC, s.id DESC
+        LIMIT 5
+    """)).mappings().all()
+
+    recent_purchases = db.execute(text("""
+        SELECT
+            p.purchase_no,
+            p.purchase_date,
+            s.supplier_name,
+            p.grand_total
+        FROM purchase p
+        LEFT JOIN suppliers s
+            ON s.id = p.supplier_id
+        ORDER BY p.purchase_date DESC, p.purchase_id DESC
+        LIMIT 5
+    """)).mappings().all()
+
+    sales_chart = db.execute(text("""
+        SELECT
+            DATE_FORMAT(sale_date, '%b') AS month_name,
+            MONTH(sale_date) AS month_no,
+            IFNULL(SUM(grand_total),0) AS sale_amount
+        FROM sales
+        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+        GROUP BY YEAR(sale_date), MONTH(sale_date), DATE_FORMAT(sale_date, '%b')
+        ORDER BY YEAR(sale_date), MONTH(sale_date)
+    """)).mappings().all()
+
+    sales_chart_labels = [row["month_name"] for row in sales_chart]
+    sales_chart_values = [float(row["sale_amount"] or 0) for row in sales_chart]
+
+    db.close()
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
             "request": request,
-            "username": request.session["user"]
+            "username": request.session["user"],
+            "full_name": request.session.get("full_name", request.session["user"]),
+            "role": request.session.get("role", "Admin"),
+            "today_sales": today_sales or 0,
+            "today_purchase": today_purchase or 0,
+            "month_sales": month_sales or 0,
+            "month_purchase": month_purchase or 0,
+            "pending_supplier": pending_supplier or 0,
+            "pending_customer": pending_customer or 0,
+            "recent_sales": recent_sales,
+            "recent_purchases": recent_purchases,
+            "sales_chart_labels": sales_chart_labels,
+            "sales_chart_values": sales_chart_values,
         }
     )
 
 
 @app.get("/company")
 def company(request: Request):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
 
     db = SessionLocal()
 
@@ -89,6 +239,7 @@ def company(request: Request):
 
 @app.post("/company/save")
 def save_company(
+    request: Request,
     company_name: str = Form(...),
     address: str = Form(...),
     city: str = Form(...),
@@ -2491,6 +2642,2080 @@ def monthly_sales_report(
     )
 
 
+@app.get("/purchase-bank-statement")
+def purchase_bank_statement(
+    request: Request,
+    month: int = 0,
+    year: int = 0,
+):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    db = SessionLocal()
+
+    today = date.today()
+
+    if not month:
+        month = today.month
+
+    if not year:
+        year = today.year
+
+    years = list(range(today.year - 5, today.year + 2))
+
+    company = db.execute(text("""
+        SELECT *
+        FROM company
+        LIMIT 1
+    """)).mappings().first()
+
+    report = db.execute(
+        text("""
+            SELECT
+                p.purchase_date,
+                s.supplier_name,
+                s.gst_number,
+                rm.material_name,
+                pi.quantity,
+                pi.unit_price,
+                (pi.quantity * pi.unit_price) AS taxable_total,
+                pi.gst_percent,
+                pi.gst_amount,
+                pi.line_total
+            FROM purchase p
+            LEFT JOIN suppliers s
+                ON s.id = p.supplier_id
+            LEFT JOIN purchase_items pi
+                ON pi.purchase_id = p.purchase_id
+            LEFT JOIN raw_materials rm
+                ON rm.id = pi.material_id
+            WHERE MONTH(p.purchase_date) = :month
+            AND YEAR(p.purchase_date) = :year
+            ORDER BY
+                p.purchase_date,
+                s.supplier_name,
+                rm.material_name
+        """),
+        {"month": month, "year": year},
+    ).mappings().all()
+
+    summary = {
+        "total_qty": sum(float(row.quantity or 0) for row in report),
+        "total_taxable": sum(float(row.taxable_total or 0) for row in report),
+        "total_gst": sum(float(row.gst_amount or 0) for row in report),
+        "grand_total": sum(float(row.line_total or 0) for row in report),
+    }
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="purchase_bank_statement.html",
+        context={
+            "request": request,
+            "company": company,
+            "report": report,
+            "summary": summary,
+            "month": month,
+            "year": year,
+            "years": years,
+            "months": [
+                {"id": 1, "name": "January"},
+                {"id": 2, "name": "February"},
+                {"id": 3, "name": "March"},
+                {"id": 4, "name": "April"},
+                {"id": 5, "name": "May"},
+                {"id": 6, "name": "June"},
+                {"id": 7, "name": "July"},
+                {"id": 8, "name": "August"},
+                {"id": 9, "name": "September"},
+                {"id": 10, "name": "October"},
+                {"id": 11, "name": "November"},
+                {"id": 12, "name": "December"},
+            ],
+        },
+    )
+
+
+@app.get("/sales-bank-statement")
+def sales_bank_statement(
+    request: Request,
+    month: int = 0,
+    year: int = 0,
+):
+
+    db = SessionLocal()
+
+    today = date.today()
+
+    if not month:
+        month = today.month
+
+    if not year:
+        year = today.year
+
+    years = list(range(today.year - 5, today.year + 2))
+
+    company = db.execute(text("""
+        SELECT *
+        FROM company
+        LIMIT 1
+    """)).mappings().first()
+
+    report = db.execute(
+        text("""
+            SELECT
+                s.sale_date,
+                c.customer_name,
+                c.gst_number,
+                p.product_name,
+                si.quantity,
+                si.price,
+                (si.quantity * si.price) AS taxable_total,
+                IFNULL(p.gst_percent,0) AS gst_percent,
+                ((si.quantity * si.price) * IFNULL(p.gst_percent,0) / 100) AS gst_amount,
+                si.total AS line_total
+            FROM sales s
+            LEFT JOIN customers c
+                ON c.id = s.customer_id
+            LEFT JOIN sale_items si
+                ON si.sale_id = s.id
+            LEFT JOIN products p
+                ON p.id = si.product_id
+            WHERE MONTH(s.sale_date) = :month
+            AND YEAR(s.sale_date) = :year
+            ORDER BY
+                s.sale_date,
+                c.customer_name,
+                p.product_name
+        """),
+        {"month": month, "year": year},
+    ).mappings().all()
+
+    summary = {
+        "total_qty": sum(float(row.quantity or 0) for row in report),
+        "total_taxable": sum(float(row.taxable_total or 0) for row in report),
+        "total_gst": sum(float(row.gst_amount or 0) for row in report),
+        "grand_total": sum(float(row.line_total or 0) for row in report),
+    }
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="sales_bank_statement.html",
+        context={
+            "request": request,
+            "company": company,
+            "report": report,
+            "summary": summary,
+            "month": month,
+            "year": year,
+            "years": years,
+            "months": [
+                {"id": 1, "name": "January"},
+                {"id": 2, "name": "February"},
+                {"id": 3, "name": "March"},
+                {"id": 4, "name": "April"},
+                {"id": 5, "name": "May"},
+                {"id": 6, "name": "June"},
+                {"id": 7, "name": "July"},
+                {"id": 8, "name": "August"},
+                {"id": 9, "name": "September"},
+                {"id": 10, "name": "October"},
+                {"id": 11, "name": "November"},
+                {"id": 12, "name": "December"},
+            ],
+        },
+    )
+
+
+@app.get("/stock-valuation-report")
+def stock_valuation_report(
+    request: Request,
+    item_type: str = "all",
+    stock_status: str = "all",
+):
+
+    db = SessionLocal()
+
+    raw_materials = (
+        db.execute(
+            text("""
+                SELECT
+                    id,
+                    material_name AS item_name,
+                    'raw' AS item_type,
+                    'Raw Material' AS item_type_label,
+                    unit,
+                    stock_qty,
+                    minimum_stock,
+                    purchase_price AS cost_price,
+                    NULL AS sale_price,
+                    gst_percent
+                FROM raw_materials
+                ORDER BY material_name
+            """)
+        )
+        .mappings()
+        .all()
+    )
+
+    products = (
+        db.execute(
+            text("""
+                SELECT
+                    id,
+                    product_name AS item_name,
+                    'product' AS item_type,
+                    'Finished Product' AS item_type_label,
+                    category AS unit,
+                    stock_qty,
+                    0 AS minimum_stock,
+                    purchase_price AS cost_price,
+                    sale_price,
+                    gst_percent
+                FROM products
+                ORDER BY product_name
+            """)
+        )
+        .mappings()
+        .all()
+    )
+
+    db.close()
+
+    report = []
+
+    for row in list(raw_materials) + list(products):
+
+        item = dict(row)
+
+        stock_qty = float(item.get("stock_qty") or 0)
+        minimum_stock = float(item.get("minimum_stock") or 0)
+        cost_price = float(item.get("cost_price") or 0)
+        sale_price = float(item.get("sale_price") or 0)
+
+        if stock_qty < 0:
+            status = "negative"
+            status_label = "Negative"
+        elif stock_qty == 0:
+            status = "zero"
+            status_label = "No Stock"
+        elif item["item_type"] == "raw" and stock_qty <= minimum_stock:
+            status = "low"
+            status_label = "Low Stock"
+        else:
+            status = "positive"
+            status_label = "In Stock"
+
+        item["stock_qty"] = stock_qty
+        item["minimum_stock"] = minimum_stock
+        item["cost_price"] = cost_price
+        item["sale_price"] = sale_price
+        item["cost_value"] = stock_qty * cost_price
+        item["sale_value"] = stock_qty * sale_price if sale_price else 0
+        item["status"] = status
+        item["status_label"] = status_label
+
+        if item_type != "all" and item["item_type"] != item_type:
+            continue
+
+        if stock_status != "all" and item["status"] != stock_status:
+            continue
+
+        report.append(item)
+
+    total_items = len(report)
+    total_qty = sum(item["stock_qty"] for item in report)
+    total_cost_value = sum(item["cost_value"] for item in report)
+    total_sale_value = sum(item["sale_value"] for item in report)
+    low_stock_count = sum(1 for item in report if item["status"] in ("low", "negative", "zero"))
+    raw_count = sum(1 for item in report if item["item_type"] == "raw")
+    product_count = sum(1 for item in report if item["item_type"] == "product")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="stock_valuation_report.html",
+        context={
+            "request": request,
+            "report": report,
+            "item_type": item_type,
+            "stock_status": stock_status,
+            "total_items": total_items,
+            "total_qty": total_qty,
+            "total_cost_value": total_cost_value,
+            "total_sale_value": total_sale_value,
+            "low_stock_count": low_stock_count,
+            "raw_count": raw_count,
+            "product_count": product_count,
+        },
+    )
+
+
+def ensure_supplier_payments_table(db):
+    return None
+
+
+@app.get("/supplier-outstanding-report")
+def supplier_outstanding_report(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    supplier_id: int = 0,
+    status: str = "all",
+):
+
+    db = SessionLocal()
+    ensure_supplier_payments_table(db)
+
+    suppliers = db.execute(text("""
+        SELECT
+            id,
+            supplier_name,
+            company_name
+        FROM suppliers
+        ORDER BY supplier_name
+    """)).mappings().all()
+
+    params = {
+        "from_date": from_date,
+        "to_date": to_date,
+        "supplier_id": supplier_id,
+    }
+
+    report = db.execute(
+        text("""
+            SELECT
+                s.id,
+                s.supplier_name,
+                s.company_name,
+                s.mobile,
+                IFNULL(p.purchase_count,0) AS purchase_count,
+                IFNULL(p.purchase_amount,0) AS purchase_amount,
+                IFNULL(pay.payment_count,0) AS payment_count,
+                IFNULL(pay.paid_amount,0) AS paid_amount,
+                IFNULL(p.purchase_amount,0) - IFNULL(pay.paid_amount,0) AS balance_amount,
+                pay.last_payment_date
+            FROM suppliers s
+            LEFT JOIN
+            (
+                SELECT
+                    supplier_id,
+                    COUNT(*) AS purchase_count,
+                    SUM(grand_total) AS purchase_amount
+                FROM purchase
+                WHERE (:from_date = '' OR purchase_date >= :from_date)
+                AND (:to_date = '' OR purchase_date <= :to_date)
+                GROUP BY supplier_id
+            ) p
+                ON p.supplier_id = s.id
+            LEFT JOIN
+            (
+                SELECT
+                    supplier_id,
+                    COUNT(*) AS payment_count,
+                    SUM(amount) AS paid_amount,
+                    MAX(payment_date) AS last_payment_date
+                FROM supplier_payments
+                WHERE (:from_date = '' OR payment_date >= :from_date)
+                AND (:to_date = '' OR payment_date <= :to_date)
+                GROUP BY supplier_id
+            ) pay
+                ON pay.supplier_id = s.id
+            WHERE (:supplier_id = 0 OR s.id = :supplier_id)
+            ORDER BY balance_amount DESC, s.supplier_name
+        """),
+        params,
+    ).mappings().all()
+
+    filtered_report = []
+
+    for row in report:
+        item = dict(row)
+        balance = float(item["balance_amount"] or 0)
+
+        if balance > 0:
+            item["status"] = "due"
+            item["status_label"] = "Payment Due"
+        elif balance < 0:
+            item["status"] = "advance"
+            item["status_label"] = "Advance Paid"
+        else:
+            item["status"] = "clear"
+            item["status_label"] = "Settled"
+
+        if status != "all" and item["status"] != status:
+            continue
+
+        filtered_report.append(item)
+
+    payments = db.execute(
+        text("""
+            SELECT
+                sp.id,
+                sp.supplier_id,
+                sp.payment_date,
+                sp.amount,
+                sp.payment_mode,
+                sp.reference_no,
+                sp.notes,
+                s.supplier_name
+            FROM supplier_payments sp
+            LEFT JOIN suppliers s
+                ON s.id = sp.supplier_id
+            WHERE (:supplier_id = 0 OR sp.supplier_id = :supplier_id)
+            AND (:from_date = '' OR sp.payment_date >= :from_date)
+            AND (:to_date = '' OR sp.payment_date <= :to_date)
+            ORDER BY sp.payment_date DESC, sp.id DESC
+            LIMIT 50
+        """),
+        params,
+    ).mappings().all()
+
+    total_purchase_amount = sum(float(item["purchase_amount"] or 0) for item in filtered_report)
+    total_paid_amount = sum(float(item["paid_amount"] or 0) for item in filtered_report)
+    total_balance_amount = sum(float(item["balance_amount"] or 0) for item in filtered_report)
+    due_supplier_count = sum(1 for item in filtered_report if item["status"] == "due")
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="supplier_outstanding_report.html",
+        context={
+            "request": request,
+            "suppliers": suppliers,
+            "report": filtered_report,
+            "payments": payments,
+            "from_date": from_date,
+            "to_date": to_date,
+            "supplier_id": supplier_id,
+            "status": status,
+            "today": date.today().strftime("%Y-%m-%d"),
+            "total_purchase_amount": total_purchase_amount,
+            "total_paid_amount": total_paid_amount,
+            "total_balance_amount": total_balance_amount,
+            "due_supplier_count": due_supplier_count,
+        },
+    )
+
+
+@app.post("/supplier-payment/save")
+def supplier_payment_save(
+    supplier_id: int = Form(...),
+    payment_date: str = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    notes: str = Form(""),
+):
+
+    db = SessionLocal()
+    ensure_supplier_payments_table(db)
+
+    db.execute(
+        text("""
+            INSERT INTO supplier_payments
+            (
+                supplier_id,
+                payment_date,
+                amount,
+                payment_mode,
+                reference_no,
+                notes
+            )
+            VALUES
+            (
+                :supplier_id,
+                :payment_date,
+                :amount,
+                :payment_mode,
+                :reference_no,
+                :notes
+            )
+        """),
+        {
+            "supplier_id": supplier_id,
+            "payment_date": payment_date,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "notes": notes,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/supplier-outstanding-report", status_code=303)
+
+
+@app.post("/supplier-payment/update")
+def supplier_payment_update(
+    payment_id: int = Form(...),
+    supplier_id: int = Form(...),
+    payment_date: str = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    notes: str = Form(""),
+):
+
+    db = SessionLocal()
+    ensure_supplier_payments_table(db)
+
+    db.execute(
+        text("""
+            UPDATE supplier_payments
+            SET
+                supplier_id=:supplier_id,
+                payment_date=:payment_date,
+                amount=:amount,
+                payment_mode=:payment_mode,
+                reference_no=:reference_no,
+                notes=:notes
+            WHERE id=:payment_id
+        """),
+        {
+            "payment_id": payment_id,
+            "supplier_id": supplier_id,
+            "payment_date": payment_date,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "notes": notes,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/supplier-outstanding-report", status_code=303)
+
+
+@app.get("/customer-outstanding-report")
+def customer_outstanding_report(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    customer_id: int = 0,
+    status: str = "all",
+):
+
+    db = SessionLocal()
+
+    customers = db.execute(text("""
+        SELECT
+            id,
+            customer_name,
+            company_name
+        FROM customers
+        ORDER BY customer_name
+    """)).mappings().all()
+
+    params = {
+        "from_date": from_date,
+        "to_date": to_date,
+        "customer_id": customer_id,
+    }
+
+    report = db.execute(
+        text("""
+            SELECT
+                c.id,
+                c.customer_name,
+                c.company_name,
+                c.mobile,
+                IFNULL(s.sale_count,0) AS sale_count,
+                IFNULL(s.sale_amount,0) AS sale_amount,
+                IFNULL(pay.payment_count,0) AS payment_count,
+                IFNULL(pay.received_amount,0) AS received_amount,
+                IFNULL(s.sale_amount,0) - IFNULL(pay.received_amount,0) AS balance_amount,
+                pay.last_payment_date
+            FROM customers c
+            LEFT JOIN
+            (
+                SELECT
+                    customer_id,
+                    COUNT(*) AS sale_count,
+                    SUM(grand_total) AS sale_amount
+                FROM sales
+                WHERE (:from_date = '' OR sale_date >= :from_date)
+                AND (:to_date = '' OR sale_date <= :to_date)
+                GROUP BY customer_id
+            ) s
+                ON s.customer_id = c.id
+            LEFT JOIN
+            (
+                SELECT
+                    customer_id,
+                    COUNT(*) AS payment_count,
+                    SUM(amount) AS received_amount,
+                    MAX(payment_date) AS last_payment_date
+                FROM customer_payments
+                WHERE (:from_date = '' OR payment_date >= :from_date)
+                AND (:to_date = '' OR payment_date <= :to_date)
+                GROUP BY customer_id
+            ) pay
+                ON pay.customer_id = c.id
+            WHERE (:customer_id = 0 OR c.id = :customer_id)
+            ORDER BY balance_amount DESC, c.customer_name
+        """),
+        params,
+    ).mappings().all()
+
+    filtered_report = []
+
+    for row in report:
+        item = dict(row)
+        balance = float(item["balance_amount"] or 0)
+
+        if balance > 0:
+            item["status"] = "due"
+            item["status_label"] = "Collection Due"
+        elif balance < 0:
+            item["status"] = "advance"
+            item["status_label"] = "Advance Received"
+        else:
+            item["status"] = "clear"
+            item["status_label"] = "Settled"
+
+        if status != "all" and item["status"] != status:
+            continue
+
+        filtered_report.append(item)
+
+    payments = db.execute(
+        text("""
+            SELECT
+                cp.id,
+                cp.customer_id,
+                cp.payment_date,
+                cp.amount,
+                cp.payment_mode,
+                cp.reference_no,
+                cp.notes,
+                c.customer_name
+            FROM customer_payments cp
+            LEFT JOIN customers c
+                ON c.id = cp.customer_id
+            WHERE (:customer_id = 0 OR cp.customer_id = :customer_id)
+            AND (:from_date = '' OR cp.payment_date >= :from_date)
+            AND (:to_date = '' OR cp.payment_date <= :to_date)
+            ORDER BY cp.payment_date DESC, cp.id DESC
+            LIMIT 50
+        """),
+        params,
+    ).mappings().all()
+
+    total_sale_amount = sum(float(item["sale_amount"] or 0) for item in filtered_report)
+    total_received_amount = sum(float(item["received_amount"] or 0) for item in filtered_report)
+    total_balance_amount = sum(float(item["balance_amount"] or 0) for item in filtered_report)
+    due_customer_count = sum(1 for item in filtered_report if item["status"] == "due")
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="customer_outstanding_report.html",
+        context={
+            "request": request,
+            "customers": customers,
+            "report": filtered_report,
+            "payments": payments,
+            "from_date": from_date,
+            "to_date": to_date,
+            "customer_id": customer_id,
+            "status": status,
+            "today": date.today().strftime("%Y-%m-%d"),
+            "total_sale_amount": total_sale_amount,
+            "total_received_amount": total_received_amount,
+            "total_balance_amount": total_balance_amount,
+            "due_customer_count": due_customer_count,
+        },
+    )
+
+
+@app.post("/customer-payment/save")
+def customer_payment_save(
+    customer_id: int = Form(...),
+    payment_date: str = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    notes: str = Form(""),
+):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            INSERT INTO customer_payments
+            (
+                customer_id,
+                payment_date,
+                amount,
+                payment_mode,
+                reference_no,
+                notes
+            )
+            VALUES
+            (
+                :customer_id,
+                :payment_date,
+                :amount,
+                :payment_mode,
+                :reference_no,
+                :notes
+            )
+        """),
+        {
+            "customer_id": customer_id,
+            "payment_date": payment_date,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "notes": notes,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/customer-outstanding-report", status_code=303)
+
+
+@app.post("/customer-payment/update")
+def customer_payment_update(
+    payment_id: int = Form(...),
+    customer_id: int = Form(...),
+    payment_date: str = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    notes: str = Form(""),
+):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            UPDATE customer_payments
+            SET
+                customer_id=:customer_id,
+                payment_date=:payment_date,
+                amount=:amount,
+                payment_mode=:payment_mode,
+                reference_no=:reference_no,
+                notes=:notes
+            WHERE id=:payment_id
+        """),
+        {
+            "payment_id": payment_id,
+            "customer_id": customer_id,
+            "payment_date": payment_date,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "notes": notes,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/customer-outstanding-report", status_code=303)
+
+
+def get_account_month_defaults(from_date: str = "", to_date: str = ""):
+    today = date.today()
+
+    if not from_date:
+        from_date = today.replace(day=1).strftime("%Y-%m-%d")
+
+    if not to_date:
+        to_date = today.strftime("%Y-%m-%d")
+
+    return from_date, to_date
+
+
+def table_exists(db, table_name: str):
+    return db.execute(
+        text("""
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+        """),
+        {"table_name": table_name},
+    ).scalar() > 0
+
+
+@app.get("/accounts")
+def accounts_page(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    account_type: str = "all",
+    account_id: int = 0,
+):
+
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+
+    db = SessionLocal()
+
+    heads = db.execute(text("""
+        SELECT *
+        FROM account_heads
+        WHERE status='Active'
+        ORDER BY account_type, account_name
+    """)).mappings().all()
+
+    transactions = db.execute(
+        text("""
+            SELECT
+                atx.*,
+                ah.account_name,
+                ah.account_type
+            FROM account_transactions atx
+            LEFT JOIN account_heads ah
+                ON ah.id = atx.account_id
+            WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+            AND (:account_type = 'all' OR ah.account_type = :account_type)
+            AND (:account_id = 0 OR atx.account_id = :account_id)
+            ORDER BY atx.transaction_date DESC, atx.id DESC
+        """),
+        {
+            "from_date": from_date,
+            "to_date": to_date,
+            "account_type": account_type,
+            "account_id": account_id,
+        },
+    ).mappings().all()
+
+    income_total = sum(float(row.amount or 0) for row in transactions if row.account_type == "Income")
+    expense_total = sum(float(row.amount or 0) for row in transactions if row.account_type == "Expense")
+    net_total = income_total - expense_total
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="accounts.html",
+        context={
+            "request": request,
+            "heads": heads,
+            "transactions": transactions,
+            "from_date": from_date,
+            "to_date": to_date,
+            "account_type": account_type,
+            "account_id": account_id,
+            "today": date.today().strftime("%Y-%m-%d"),
+            "income_total": income_total,
+            "expense_total": expense_total,
+            "net_total": net_total,
+        },
+    )
+
+
+@app.post("/account-head/save")
+def account_head_save(
+    account_name: str = Form(...),
+    account_type: str = Form(...),
+):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            INSERT INTO account_heads
+            (
+                account_name,
+                account_type,
+                status
+            )
+            VALUES
+            (
+                :account_name,
+                :account_type,
+                'Active'
+            )
+        """),
+        {
+            "account_name": account_name,
+            "account_type": account_type,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/accounts", status_code=303)
+
+
+@app.post("/account-transaction/save")
+def account_transaction_save(
+    transaction_date: str = Form(...),
+    account_id: int = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    narration: str = Form(""),
+):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            INSERT INTO account_transactions
+            (
+                transaction_date,
+                account_id,
+                amount,
+                payment_mode,
+                reference_no,
+                narration
+            )
+            VALUES
+            (
+                :transaction_date,
+                :account_id,
+                :amount,
+                :payment_mode,
+                :reference_no,
+                :narration
+            )
+        """),
+        {
+            "transaction_date": transaction_date,
+            "account_id": account_id,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "narration": narration,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/accounts", status_code=303)
+
+
+@app.post("/account-transaction/update")
+def account_transaction_update(
+    transaction_id: int = Form(...),
+    transaction_date: str = Form(...),
+    account_id: int = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    narration: str = Form(""),
+):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            UPDATE account_transactions
+            SET
+                transaction_date=:transaction_date,
+                account_id=:account_id,
+                amount=:amount,
+                payment_mode=:payment_mode,
+                reference_no=:reference_no,
+                narration=:narration
+            WHERE id=:transaction_id
+        """),
+        {
+            "transaction_id": transaction_id,
+            "transaction_date": transaction_date,
+            "account_id": account_id,
+            "amount": amount,
+            "payment_mode": payment_mode,
+            "reference_no": reference_no,
+            "narration": narration,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/accounts", status_code=303)
+
+
+@app.get("/account-transaction/delete/{transaction_id}")
+def account_transaction_delete(transaction_id: int):
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            DELETE FROM account_transactions
+            WHERE id=:transaction_id
+        """),
+        {"transaction_id": transaction_id},
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/accounts", status_code=303)
+
+
+@app.get("/accounts-ledger")
+def accounts_ledger(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    account_type: str = "all",
+    account_id: int = 0,
+):
+
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+
+    db = SessionLocal()
+
+    heads = db.execute(text("""
+        SELECT *
+        FROM account_heads
+        WHERE status='Active'
+        ORDER BY account_type, account_name
+    """)).mappings().all()
+
+    ledger = db.execute(
+        text("""
+            SELECT
+                atx.transaction_date,
+                ah.account_name,
+                ah.account_type,
+                atx.payment_mode,
+                atx.reference_no,
+                atx.narration,
+                CASE WHEN ah.account_type = 'Income' THEN atx.amount ELSE 0 END AS income_amount,
+                CASE WHEN ah.account_type = 'Expense' THEN atx.amount ELSE 0 END AS expense_amount
+            FROM account_transactions atx
+            LEFT JOIN account_heads ah
+                ON ah.id = atx.account_id
+            WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+            AND (:account_type = 'all' OR ah.account_type = :account_type)
+            AND (:account_id = 0 OR atx.account_id = :account_id)
+            ORDER BY atx.transaction_date, atx.id
+        """),
+        {
+            "from_date": from_date,
+            "to_date": to_date,
+            "account_type": account_type,
+            "account_id": account_id,
+        },
+    ).mappings().all()
+
+    company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first()
+
+    total_income = sum(float(row.income_amount or 0) for row in ledger)
+    total_expense = sum(float(row.expense_amount or 0) for row in ledger)
+    net_total = total_income - total_expense
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="accounts_ledger.html",
+        context={
+            "request": request,
+            "company": company,
+            "heads": heads,
+            "ledger": ledger,
+            "from_date": from_date,
+            "to_date": to_date,
+            "account_type": account_type,
+            "account_id": account_id,
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "net_total": net_total,
+        },
+    )
+
+
+@app.get("/ai-expense-analyzer")
+def ai_expense_analyzer(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+):
+
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+
+    db = SessionLocal()
+
+    has_accounts = table_exists(db, "account_heads") and table_exists(db, "account_transactions")
+
+    expense_rows = []
+    mode_rows = []
+    total_income = 0
+    total_expense = 0
+    net_total = 0
+    insights = []
+
+    if has_accounts:
+        expense_rows = db.execute(
+            text("""
+                SELECT
+                    ah.account_name,
+                    SUM(atx.amount) AS total_amount,
+                    COUNT(*) AS entry_count
+                FROM account_transactions atx
+                LEFT JOIN account_heads ah
+                    ON ah.id = atx.account_id
+                WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+                AND ah.account_type = 'Expense'
+                GROUP BY ah.account_name
+                ORDER BY total_amount DESC
+            """),
+            {"from_date": from_date, "to_date": to_date},
+        ).mappings().all()
+
+        mode_rows = db.execute(
+            text("""
+                SELECT
+                    payment_mode,
+                    SUM(amount) AS total_amount,
+                    COUNT(*) AS entry_count
+                FROM account_transactions atx
+                LEFT JOIN account_heads ah
+                    ON ah.id = atx.account_id
+                WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+                AND ah.account_type = 'Expense'
+                GROUP BY payment_mode
+                ORDER BY total_amount DESC
+            """),
+            {"from_date": from_date, "to_date": to_date},
+        ).mappings().all()
+
+        summary = db.execute(
+            text("""
+                SELECT
+                    IFNULL(SUM(CASE WHEN ah.account_type = 'Income' THEN atx.amount ELSE 0 END),0) AS income_total,
+                    IFNULL(SUM(CASE WHEN ah.account_type = 'Expense' THEN atx.amount ELSE 0 END),0) AS expense_total
+                FROM account_transactions atx
+                LEFT JOIN account_heads ah
+                    ON ah.id = atx.account_id
+                WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+            """),
+            {"from_date": from_date, "to_date": to_date},
+        ).mappings().first()
+
+        total_income = float(summary["income_total"] or 0)
+        total_expense = float(summary["expense_total"] or 0)
+        net_total = total_income - total_expense
+
+        if total_expense > total_income and total_income > 0:
+            insights.append({
+                "type": "risk",
+                "title": "Expense is higher than income",
+                "message": "This period has negative cash flow. Review non-essential expense heads first."
+            })
+        elif net_total > 0:
+            insights.append({
+                "type": "good",
+                "title": "Income is covering expenses",
+                "message": "This period is positive. Keep checking large expense heads for control."
+            })
+
+        if expense_rows:
+            top = expense_rows[0]
+            top_amount = float(top["total_amount"] or 0)
+            share = (top_amount / total_expense * 100) if total_expense else 0
+            insights.append({
+                "type": "focus",
+                "title": f"Highest expense: {top['account_name']}",
+                "message": f"This head uses {share:.1f}% of total expenses. Verify if it is expected."
+            })
+
+            if share >= 40:
+                insights.append({
+                    "type": "risk",
+                    "title": "Expense concentration detected",
+                    "message": "One expense head is consuming a large share. Consider splitting or reviewing this cost."
+                })
+
+        if mode_rows:
+            cash_row = next((row for row in mode_rows if (row["payment_mode"] or "").lower() == "cash"), None)
+            if cash_row and total_expense:
+                cash_share = float(cash_row["total_amount"] or 0) / total_expense * 100
+                if cash_share >= 60:
+                    insights.append({
+                        "type": "focus",
+                        "title": "High cash expense usage",
+                        "message": f"Cash expenses are {cash_share:.1f}% of total expense. Bank/UPI records may be easier to reconcile."
+                    })
+
+        if not insights:
+            insights.append({
+                "type": "focus",
+                "title": "Not enough expense movement yet",
+                "message": "Add more income and expense entries to generate stronger insights."
+            })
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="ai_expense_analyzer.html",
+        context={
+            "request": request,
+            "has_accounts": has_accounts,
+            "from_date": from_date,
+            "to_date": to_date,
+            "expense_rows": expense_rows,
+            "mode_rows": mode_rows,
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "net_total": net_total,
+            "insights": insights,
+        },
+    )
+
+
+@app.get("/ai-chatbot")
+def ai_chatbot(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="ai_chatbot.html",
+        context={"request": request},
+    )
+
+
+@app.post("/ai-chatbot/ask")
+async def ai_chatbot_ask(request: Request):
+
+    data = await request.json()
+    question = (data.get("question") or "").strip()
+    query = question.lower()
+
+    db = SessionLocal()
+
+    answer = "I can answer about sales, purchase, customer outstanding, supplier outstanding, expenses, income, ledger, salary, and reports. Try asking: What is today's sales?"
+    suggestions = [
+        "What is today's sales?",
+        "What is this month purchase?",
+        "Show customer outstanding",
+        "Analyze expenses",
+    ]
+
+    if "today" in query and "sale" in query:
+        value = db.execute(text("""
+            SELECT IFNULL(SUM(grand_total),0)
+            FROM sales
+            WHERE sale_date = CURDATE()
+        """)).scalar()
+        answer = f"Today's sales total is Rs. {float(value or 0):,.2f}."
+
+    elif "month" in query and "sale" in query:
+        value = db.execute(text("""
+            SELECT IFNULL(SUM(grand_total),0)
+            FROM sales
+            WHERE MONTH(sale_date)=MONTH(CURDATE())
+            AND YEAR(sale_date)=YEAR(CURDATE())
+        """)).scalar()
+        answer = f"This month sales total is Rs. {float(value or 0):,.2f}."
+
+    elif "today" in query and "purchase" in query:
+        value = db.execute(text("""
+            SELECT IFNULL(SUM(grand_total),0)
+            FROM purchase
+            WHERE purchase_date = CURDATE()
+        """)).scalar()
+        answer = f"Today's purchase total is Rs. {float(value or 0):,.2f}."
+
+    elif "month" in query and "purchase" in query:
+        value = db.execute(text("""
+            SELECT IFNULL(SUM(grand_total),0)
+            FROM purchase
+            WHERE MONTH(purchase_date)=MONTH(CURDATE())
+            AND YEAR(purchase_date)=YEAR(CURDATE())
+        """)).scalar()
+        answer = f"This month purchase total is Rs. {float(value or 0):,.2f}."
+
+    elif "customer" in query and ("outstanding" in query or "due" in query or "pending" in query):
+        has_payments = table_exists(db, "customer_payments")
+        if has_payments:
+            value = db.execute(text("""
+                SELECT IFNULL(s.sale_amount,0) - IFNULL(paid.received_amount,0)
+                FROM
+                (
+                    SELECT IFNULL(SUM(grand_total),0) AS sale_amount
+                    FROM sales
+                ) s
+                CROSS JOIN
+                (
+                    SELECT IFNULL(SUM(amount),0) AS received_amount
+                    FROM customer_payments
+                ) paid
+            """)).scalar()
+            answer = f"Customer outstanding is Rs. {float(value or 0):,.2f}. Open Customer Outstanding report for party-wise details."
+        else:
+            answer = "Customer payment table is not created yet. Run the customer_payments SQL first."
+
+    elif "supplier" in query and ("outstanding" in query or "due" in query or "pending" in query):
+        has_payments = table_exists(db, "supplier_payments")
+        if has_payments:
+            value = db.execute(text("""
+                SELECT IFNULL(p.purchase_amount,0) - IFNULL(paid.paid_amount,0)
+                FROM
+                (
+                    SELECT IFNULL(SUM(grand_total),0) AS purchase_amount
+                    FROM purchase
+                ) p
+                CROSS JOIN
+                (
+                    SELECT IFNULL(SUM(amount),0) AS paid_amount
+                    FROM supplier_payments
+                ) paid
+            """)).scalar()
+            answer = f"Supplier outstanding is Rs. {float(value or 0):,.2f}. Open Supplier Outstanding report for supplier-wise details."
+        else:
+            answer = "Supplier payment table is not created yet. Run the supplier_payments SQL first."
+
+    elif "expense" in query or "income" in query or "ledger" in query:
+        has_accounts = table_exists(db, "account_heads") and table_exists(db, "account_transactions")
+        if has_accounts:
+            row = db.execute(text("""
+                SELECT
+                    IFNULL(SUM(CASE WHEN ah.account_type='Income' THEN atx.amount ELSE 0 END),0) AS income_total,
+                    IFNULL(SUM(CASE WHEN ah.account_type='Expense' THEN atx.amount ELSE 0 END),0) AS expense_total
+                FROM account_transactions atx
+                LEFT JOIN account_heads ah
+                    ON ah.id = atx.account_id
+                WHERE MONTH(atx.transaction_date)=MONTH(CURDATE())
+                AND YEAR(atx.transaction_date)=YEAR(CURDATE())
+            """)).mappings().first()
+            income = float(row["income_total"] or 0)
+            expense = float(row["expense_total"] or 0)
+            answer = f"This month income is Rs. {income:,.2f}, expense is Rs. {expense:,.2f}, and net balance is Rs. {income - expense:,.2f}."
+        else:
+            answer = "Accounts tables are not created yet. Run account_heads and account_transactions SQL first."
+
+    elif "salary" in query or "attendance" in query:
+        has_employees = table_exists(db, "employees")
+        if has_employees:
+            count = db.execute(text("SELECT COUNT(*) FROM employees WHERE status='Active'")).scalar()
+            answer = f"There are {int(count or 0)} active employees. Use Attendance and Salary Receipt screens for payroll."
+        else:
+            answer = "Employee tables are not created yet. Run employee SQL first."
+
+    elif "report" in query:
+        answer = "Important reports available: Purchase Report, Sales Report, Monthly Sales, Monthly Purchase, Stock Valuation, Supplier Outstanding, Customer Outstanding, Accounts Ledger, Purchase Bank Statement, and Sales Bank Statement."
+
+    db.close()
+
+    return JSONResponse({
+        "answer": answer,
+        "suggestions": suggestions,
+    })
+
+
+@app.get("/users")
+def users_page(request: Request):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    db = SessionLocal()
+
+    users = db.execute(text("""
+        SELECT *
+        FROM users
+        ORDER BY username
+    """)).mappings().all()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="users.html",
+        context={"request": request, "users": users},
+    )
+
+
+@app.get("/user/add")
+def user_add(request: Request):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    return templates.TemplateResponse(
+        request=request,
+        name="user_form.html",
+        context={"request": request, "user": None},
+    )
+
+
+@app.post("/user/save")
+def user_save(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(""),
+    role: str = Form("User"),
+    status: str = Form("Active"),
+):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            INSERT INTO users
+            (
+                username,
+                password,
+                full_name,
+                role,
+                status
+            )
+            VALUES
+            (
+                :username,
+                :password,
+                :full_name,
+                :role,
+                :status
+            )
+        """),
+        {
+            "username": username,
+            "password": password,
+            "full_name": full_name,
+            "role": role,
+            "status": status,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/users", status_code=303)
+
+
+@app.get("/user/edit/{user_id}")
+def user_edit(user_id: int, request: Request):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    db = SessionLocal()
+
+    user = db.execute(
+        text("""
+            SELECT *
+            FROM users
+            WHERE id=:user_id
+        """),
+        {"user_id": user_id},
+    ).mappings().first()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="user_form.html",
+        context={"request": request, "user": user},
+    )
+
+
+@app.post("/user/update")
+def user_update(
+    request: Request,
+    user_id: int = Form(...),
+    username: str = Form(...),
+    password: str = Form(""),
+    full_name: str = Form(""),
+    role: str = Form("User"),
+    status: str = Form("Active"),
+):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    password_sql = ", password=:password" if password else ""
+
+    db = SessionLocal()
+
+    db.execute(
+        text(f"""
+            UPDATE users
+            SET
+                username=:username,
+                full_name=:full_name,
+                role=:role,
+                status=:status
+                {password_sql}
+            WHERE id=:user_id
+        """),
+        {
+            "user_id": user_id,
+            "username": username,
+            "password": password,
+            "full_name": full_name,
+            "role": role,
+            "status": status,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/users", status_code=303)
+
+
+@app.get("/user/delete/{user_id}")
+def user_delete(user_id: int, request: Request):
+
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    current_username = request.session.get("user")
+
+    db = SessionLocal()
+
+    user = db.execute(
+        text("SELECT username FROM users WHERE id=:user_id"),
+        {"user_id": user_id},
+    ).mappings().first()
+
+    if user and user["username"] != current_username:
+        db.execute(text("DELETE FROM users WHERE id=:user_id"), {"user_id": user_id})
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse("/users", status_code=303)
+
+
+def save_employee_photo(photo: UploadFile = None):
+    if not photo or not photo.filename:
+        return ""
+
+    upload_dir = "app/static/uploads/employees"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    _, extension = os.path.splitext(photo.filename)
+    filename = f"{uuid.uuid4().hex}{extension.lower()}"
+    file_path = os.path.join(upload_dir, filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(photo.file.read())
+
+    return f"/static/uploads/employees/{filename}"
+
+
+@app.get("/employees")
+def employees(request: Request):
+
+    db = SessionLocal()
+
+    employees = db.execute(text("""
+        SELECT *
+        FROM employees
+        ORDER BY employee_name
+    """)).mappings().all()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="employees.html",
+        context={"request": request, "employees": employees},
+    )
+
+
+@app.get("/employee/add")
+def employee_add(request: Request):
+
+    return templates.TemplateResponse(
+        request=request,
+        name="employee_form.html",
+        context={"request": request, "employee": None},
+    )
+
+
+@app.post("/employee/save")
+async def employee_save(
+    employee_code: str = Form(""),
+    employee_name: str = Form(...),
+    designation: str = Form(""),
+    department: str = Form(""),
+    joining_date: str = Form(""),
+    monthly_salary: float = Form(0),
+    advance_amount: float = Form(0),
+    phone: str = Form(""),
+    mobile: str = Form(""),
+    email: str = Form(""),
+    emergency_contact: str = Form(""),
+    bank_name: str = Form(""),
+    bank_account_no: str = Form(""),
+    ifsc_code: str = Form(""),
+    address: str = Form(""),
+    status: str = Form("Active"),
+    photo: UploadFile = File(None),
+):
+
+    photo_path = save_employee_photo(photo)
+
+    db = SessionLocal()
+
+    db.execute(
+        text("""
+            INSERT INTO employees
+            (
+                employee_code,
+                employee_name,
+                designation,
+                department,
+                joining_date,
+                monthly_salary,
+                advance_amount,
+                phone,
+                mobile,
+                email,
+                emergency_contact,
+                bank_name,
+                bank_account_no,
+                ifsc_code,
+                address,
+                photo_path,
+                status
+            )
+            VALUES
+            (
+                :employee_code,
+                :employee_name,
+                :designation,
+                :department,
+                :joining_date,
+                :monthly_salary,
+                :advance_amount,
+                :phone,
+                :mobile,
+                :email,
+                :emergency_contact,
+                :bank_name,
+                :bank_account_no,
+                :ifsc_code,
+                :address,
+                :photo_path,
+                :status
+            )
+        """),
+        {
+            "employee_code": employee_code,
+            "employee_name": employee_name,
+            "designation": designation,
+            "department": department,
+            "joining_date": joining_date if joining_date else None,
+            "monthly_salary": monthly_salary,
+            "advance_amount": advance_amount,
+            "phone": phone,
+            "mobile": mobile,
+            "email": email,
+            "emergency_contact": emergency_contact,
+            "bank_name": bank_name,
+            "bank_account_no": bank_account_no,
+            "ifsc_code": ifsc_code,
+            "address": address,
+            "photo_path": photo_path,
+            "status": status,
+        },
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/employees", status_code=303)
+
+
+@app.get("/employee/edit/{employee_id}")
+def employee_edit(employee_id: int, request: Request):
+
+    db = SessionLocal()
+
+    employee = db.execute(
+        text("""
+            SELECT *
+            FROM employees
+            WHERE id=:employee_id
+        """),
+        {"employee_id": employee_id},
+    ).mappings().first()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="employee_form.html",
+        context={"request": request, "employee": employee},
+    )
+
+
+@app.post("/employee/update")
+async def employee_update(
+    employee_id: int = Form(...),
+    employee_code: str = Form(""),
+    employee_name: str = Form(...),
+    designation: str = Form(""),
+    department: str = Form(""),
+    joining_date: str = Form(""),
+    monthly_salary: float = Form(0),
+    advance_amount: float = Form(0),
+    phone: str = Form(""),
+    mobile: str = Form(""),
+    email: str = Form(""),
+    emergency_contact: str = Form(""),
+    bank_name: str = Form(""),
+    bank_account_no: str = Form(""),
+    ifsc_code: str = Form(""),
+    address: str = Form(""),
+    status: str = Form("Active"),
+    photo: UploadFile = File(None),
+):
+
+    photo_path = save_employee_photo(photo)
+    photo_sql = ", photo_path=:photo_path" if photo_path else ""
+
+    db = SessionLocal()
+
+    params = {
+        "employee_id": employee_id,
+        "employee_code": employee_code,
+        "employee_name": employee_name,
+        "designation": designation,
+        "department": department,
+        "joining_date": joining_date if joining_date else None,
+        "monthly_salary": monthly_salary,
+        "advance_amount": advance_amount,
+        "phone": phone,
+        "mobile": mobile,
+        "email": email,
+        "emergency_contact": emergency_contact,
+        "bank_name": bank_name,
+        "bank_account_no": bank_account_no,
+        "ifsc_code": ifsc_code,
+        "address": address,
+        "status": status,
+        "photo_path": photo_path,
+    }
+
+    db.execute(
+        text(f"""
+            UPDATE employees
+            SET
+                employee_code=:employee_code,
+                employee_name=:employee_name,
+                designation=:designation,
+                department=:department,
+                joining_date=:joining_date,
+                monthly_salary=:monthly_salary,
+                advance_amount=:advance_amount,
+                phone=:phone,
+                mobile=:mobile,
+                email=:email,
+                emergency_contact=:emergency_contact,
+                bank_name=:bank_name,
+                bank_account_no=:bank_account_no,
+                ifsc_code=:ifsc_code,
+                address=:address,
+                status=:status
+                {photo_sql}
+            WHERE id=:employee_id
+        """),
+        params,
+    )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/employees", status_code=303)
+
+
+@app.get("/employee/delete/{employee_id}")
+def employee_delete(employee_id: int):
+
+    db = SessionLocal()
+
+    db.execute(text("DELETE FROM employee_attendance WHERE employee_id=:employee_id"), {"employee_id": employee_id})
+    db.execute(text("DELETE FROM employees WHERE id=:employee_id"), {"employee_id": employee_id})
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/employees", status_code=303)
+
+
+@app.get("/employee-attendance")
+def employee_attendance(request: Request, month: int = 0, year: int = 0):
+
+    today = date.today()
+
+    if not month:
+        month = today.month
+
+    if not year:
+        year = today.year
+
+    db = SessionLocal()
+
+    employees = db.execute(text("""
+        SELECT
+            id,
+            employee_code,
+            employee_name,
+            designation,
+            monthly_salary,
+            advance_amount
+        FROM employees
+        WHERE status='Active'
+        ORDER BY employee_name
+    """)).mappings().all()
+
+    attendance = db.execute(
+        text("""
+            SELECT *
+            FROM employee_attendance
+            WHERE attendance_month=:month
+            AND attendance_year=:year
+        """),
+        {"month": month, "year": year},
+    ).mappings().all()
+
+    attendance_map = {row.employee_id: row for row in attendance}
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    rows = []
+
+    for employee in employees:
+        item = dict(employee)
+        item["attendance"] = attendance_map.get(employee.id)
+        rows.append(item)
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="employee_attendance.html",
+        context={
+            "request": request,
+            "employees": rows,
+            "month": month,
+            "year": year,
+            "days_in_month": days_in_month,
+            "years": list(range(today.year - 3, today.year + 2)),
+            "months": [
+                {"id": 1, "name": "January"},
+                {"id": 2, "name": "February"},
+                {"id": 3, "name": "March"},
+                {"id": 4, "name": "April"},
+                {"id": 5, "name": "May"},
+                {"id": 6, "name": "June"},
+                {"id": 7, "name": "July"},
+                {"id": 8, "name": "August"},
+                {"id": 9, "name": "September"},
+                {"id": 10, "name": "October"},
+                {"id": 11, "name": "November"},
+                {"id": 12, "name": "December"},
+            ],
+        },
+    )
+
+
+@app.post("/employee-attendance/save")
+async def employee_attendance_save(request: Request):
+
+    form = await request.form()
+
+    month = int(form.get("month"))
+    year = int(form.get("year"))
+    employee_ids = form.getlist("employee_id")
+
+    db = SessionLocal()
+
+    for employee_id in employee_ids:
+        db.execute(
+            text("""
+                INSERT INTO employee_attendance
+                (
+                    employee_id,
+                    attendance_month,
+                    attendance_year,
+                    present_days,
+                    leave_days,
+                    absent_days,
+                    overtime_amount,
+                    deduction_amount,
+                    remarks
+                )
+                VALUES
+                (
+                    :employee_id,
+                    :month,
+                    :year,
+                    :present_days,
+                    :leave_days,
+                    :absent_days,
+                    :overtime_amount,
+                    :deduction_amount,
+                    :remarks
+                )
+                ON DUPLICATE KEY UPDATE
+                    present_days=VALUES(present_days),
+                    leave_days=VALUES(leave_days),
+                    absent_days=VALUES(absent_days),
+                    overtime_amount=VALUES(overtime_amount),
+                    deduction_amount=VALUES(deduction_amount),
+                    remarks=VALUES(remarks)
+            """),
+            {
+                "employee_id": int(employee_id),
+                "month": month,
+                "year": year,
+                "present_days": float(form.get(f"present_days_{employee_id}") or 0),
+                "leave_days": float(form.get(f"leave_days_{employee_id}") or 0),
+                "absent_days": float(form.get(f"absent_days_{employee_id}") or 0),
+                "overtime_amount": float(form.get(f"overtime_amount_{employee_id}") or 0),
+                "deduction_amount": float(form.get(f"deduction_amount_{employee_id}") or 0),
+                "remarks": form.get(f"remarks_{employee_id}") or "",
+            },
+        )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse(f"/employee-attendance?month={month}&year={year}", status_code=303)
+
+
+@app.get("/salary-receipt")
+def salary_receipt(request: Request, employee_id: int = 0, month: int = 0, year: int = 0):
+
+    today = date.today()
+
+    if not month:
+        month = today.month
+
+    if not year:
+        year = today.year
+
+    db = SessionLocal()
+
+    employees = db.execute(text("""
+        SELECT id, employee_name, employee_code
+        FROM employees
+        WHERE status='Active'
+        ORDER BY employee_name
+    """)).mappings().all()
+
+    if not employee_id and employees:
+        employee_id = employees[0].id
+
+    employee = None
+    attendance = None
+    salary = None
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    if employee_id:
+        employee = db.execute(
+            text("""
+                SELECT *
+                FROM employees
+                WHERE id=:employee_id
+            """),
+            {"employee_id": employee_id},
+        ).mappings().first()
+
+        attendance = db.execute(
+            text("""
+                SELECT *
+                FROM employee_attendance
+                WHERE employee_id=:employee_id
+                AND attendance_month=:month
+                AND attendance_year=:year
+            """),
+            {"employee_id": employee_id, "month": month, "year": year},
+        ).mappings().first()
+
+        if employee:
+            monthly_salary = float(employee.monthly_salary or 0)
+            present_days = float(attendance.present_days or 0) if attendance else 0
+            leave_days = float(attendance.leave_days or 0) if attendance else 0
+            absent_days = float(attendance.absent_days or 0) if attendance else 0
+            payable_days = present_days + leave_days
+            per_day_salary = monthly_salary / days_in_month if days_in_month else 0
+            earned_salary = per_day_salary * payable_days
+            overtime_amount = float(attendance.overtime_amount or 0) if attendance else 0
+            deduction_amount = float(attendance.deduction_amount or 0) if attendance else 0
+            advance_amount = float(employee.advance_amount or 0)
+            net_salary = earned_salary + overtime_amount - deduction_amount - advance_amount
+
+            salary = {
+                "days_in_month": days_in_month,
+                "present_days": present_days,
+                "leave_days": leave_days,
+                "absent_days": absent_days,
+                "payable_days": payable_days,
+                "per_day_salary": per_day_salary,
+                "earned_salary": earned_salary,
+                "overtime_amount": overtime_amount,
+                "deduction_amount": deduction_amount,
+                "advance_amount": advance_amount,
+                "net_salary": net_salary,
+            }
+
+    company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="salary_receipt.html",
+        context={
+            "request": request,
+            "employees": employees,
+            "employee": employee,
+            "attendance": attendance,
+            "salary": salary,
+            "company": company,
+            "employee_id": employee_id,
+            "month": month,
+            "year": year,
+            "years": list(range(today.year - 3, today.year + 2)),
+            "months": [
+                {"id": 1, "name": "January"},
+                {"id": 2, "name": "February"},
+                {"id": 3, "name": "March"},
+                {"id": 4, "name": "April"},
+                {"id": 5, "name": "May"},
+                {"id": 6, "name": "June"},
+                {"id": 7, "name": "July"},
+                {"id": 8, "name": "August"},
+                {"id": 9, "name": "September"},
+                {"id": 10, "name": "October"},
+                {"id": 11, "name": "November"},
+                {"id": 12, "name": "December"},
+            ],
+        },
+    )
+
+
 @app.get("/login")
 async def login_page(request: Request):
 
@@ -2528,8 +4753,21 @@ async def login(
     db.close()
 
     if user:
+        user_data = dict(user)
 
-        request.session["user"] = username
+        if user_data.get("status", "Active") != "Active":
+            return templates.TemplateResponse(
+                request=request,
+                name="login.html",
+                context={
+                    "request": request,
+                    "error": "User account is inactive."
+                }
+            )
+
+        request.session["user"] = user_data.get("username", username)
+        request.session["full_name"] = user_data.get("full_name") or user_data.get("username", username)
+        request.session["role"] = user_data.get("role", "Admin")
 
         return RedirectResponse("/dashboard", status_code=303)
 

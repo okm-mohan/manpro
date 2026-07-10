@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Supplier Outstanding Report
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/supplier_outstanding_report.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="supplier-outstanding-page">
+
+    <section class="supplier-outstanding-hero">
+        <div>
+            <span class="supplier-outstanding-kicker">Payables Desk</span>
+            <h1>Supplier Outstanding Report</h1>
+            <p>Track supplier purchase value, payments made, pending balance and recent payment updates from one focused report.</p>
+        </div>
+
+        <button type="button" class="btn-outstanding-print" onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Print</span>
+        </button>
+    </section>
+
+    <section class="outstanding-summary">
+        <div class="outstanding-summary-tile">
+            <div class="outstanding-summary-icon icon-purchase">
+                <i class="bi bi-receipt-cutoff"></i>
+            </div>
+            <div>
+                <span>Purchase Value</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_purchase_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="outstanding-summary-tile">
+            <div class="outstanding-summary-icon icon-paid">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+            <div>
+                <span>Paid Amount</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_paid_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="outstanding-summary-tile">
+            <div class="outstanding-summary-icon icon-balance">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <div>
+                <span>Balance</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_balance_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="outstanding-summary-tile">
+            <div class="outstanding-summary-icon icon-alert">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div>
+                <span>Due Suppliers</span>
+                <strong>{{ due_supplier_count }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="outstanding-entry-panel">
+        <div class="outstanding-panel-header">
+            <div>
+                <span class="outstanding-panel-label">Payment Entry</span>
+                <h2>Record Supplier Payment</h2>
+            </div>
+        </div>
+
+        <form method="post" action="/supplier-payment/save" class="payment-entry-form">
+            <div class="payment-field wide">
+                <label>Supplier</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-truck"></i>
+                    <select name="supplier_id" required>
+                        <option value="">Select Supplier</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}">{{ supplier.supplier_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>Payment Date</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-calendar3"></i>
+                    <input type="date" name="payment_date" value="{{ today }}" required>
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>Amount</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-currency-rupee"></i>
+                    <input type="number" name="amount" step="0.01" min="0" required>
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>Mode</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-credit-card"></i>
+                    <select name="payment_mode">
+                        <option>Cash</option>
+                        <option>Bank Transfer</option>
+                        <option>UPI</option>
+                        <option>Cheque</option>
+                        <option>Adjustment</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>Reference No</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-hash"></i>
+                    <input type="text" name="reference_no">
+                </div>
+            </div>
+
+            <div class="payment-field notes">
+                <label>Notes</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-journal-text"></i>
+                    <input type="text" name="notes">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save-payment">
+                <i class="bi bi-save2"></i>
+                <span>Save Payment</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="outstanding-filter-panel">
+        <form method="get" action="/supplier-outstanding-report" class="outstanding-filter-form">
+            <div class="payment-field">
+                <label>From Date</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" name="from_date" value="{{ from_date }}">
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>To Date</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-calendar-check"></i>
+                    <input type="date" name="to_date" value="{{ to_date }}">
+                </div>
+            </div>
+
+            <div class="payment-field wide">
+                <label>Supplier</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-filter"></i>
+                    <select name="supplier_id">
+                        <option value="0">All Suppliers</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if supplier.id == supplier_id %}selected{% endif %}>
+                            {{ supplier.supplier_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="payment-field">
+                <label>Status</label>
+                <div class="payment-input-shell">
+                    <i class="bi bi-activity"></i>
+                    <select name="status">
+                        <option value="all" {% if status == "all" %}selected{% endif %}>All Status</option>
+                        <option value="due" {% if status == "due" %}selected{% endif %}>Payment Due</option>
+                        <option value="clear" {% if status == "clear" %}selected{% endif %}>Settled</option>
+                        <option value="advance" {% if status == "advance" %}selected{% endif %}>Advance Paid</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-outstanding-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="outstanding-report-panel">
+        <div class="outstanding-panel-header">
+            <div>
+                <span class="outstanding-panel-label">Supplier Ledger</span>
+                <h2>Outstanding Balances</h2>
+            </div>
+            <span class="outstanding-record-count">{{ report|length }} Records</span>
+        </div>
+
+        <div class="outstanding-table-wrap">
+            <table class="outstanding-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Supplier</th>
+                        <th>Purchases</th>
+                        <th>Purchase Value</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                        <th>Last Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="supplier-ledger-cell">
+                                <span class="supplier-ledger-avatar">{{ row.supplier_name[:1]|upper }}</span>
+                                <div>
+                                    <strong>{{ row.supplier_name }}</strong>
+                                    <span>{{ row.company_name or row.mobile or "Supplier" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="outstanding-number">{{ row.purchase_count }}</td>
+                        <td class="outstanding-number">&#8377; {{ "{:,.2f}".format(row.purchase_amount or 0) }}</td>
+                        <td class="outstanding-number paid">&#8377; {{ "{:,.2f}".format(row.paid_amount or 0) }}</td>
+                        <td class="outstanding-number balance">&#8377; {{ "{:,.2f}".format(row.balance_amount or 0) }}</td>
+                        <td>{{ row.last_payment_date or "-" }}</td>
+                        <td>
+                            <span class="outstanding-status {{ row.status }}">{{ row.status_label }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="outstanding-empty-state">
+                                <i class="bi bi-wallet"></i>
+                                <strong>No outstanding records found</strong>
+                                <span>Try changing the filters or add supplier purchases and payments.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="outstanding-report-panel payment-history-panel">
+        <div class="outstanding-panel-header">
+            <div>
+                <span class="outstanding-panel-label">Payment History</span>
+                <h2>Recent Supplier Payments</h2>
+            </div>
+            <span class="outstanding-record-count">{{ payments|length }} Entries</span>
+        </div>
+
+        <div class="outstanding-table-wrap">
+            <table class="outstanding-table payment-history-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Supplier</th>
+                        <th>Amount</th>
+                        <th>Mode</th>
+                        <th>Reference</th>
+                        <th>Notes</th>
+                        <th>Update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>
+                            <form id="paymentUpdate{{ payment.id }}" method="post" action="/supplier-payment/update"></form>
+                            <input form="paymentUpdate{{ payment.id }}" type="hidden" name="payment_id" value="{{ payment.id }}">
+                            <input form="paymentUpdate{{ payment.id }}" type="date" name="payment_date" value="{{ payment.payment_date }}" required>
+                        </td>
+                        <td>
+                            <select form="paymentUpdate{{ payment.id }}" name="supplier_id" required>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}" {% if supplier.id == payment.supplier_id %}selected{% endif %}>
+                                    {{ supplier.supplier_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input form="paymentUpdate{{ payment.id }}" type="number" name="amount" step="0.01" min="0" value="{{ payment.amount }}" required>
+                        </td>
+                        <td>
+                            <select form="paymentUpdate{{ payment.id }}" name="payment_mode">
+                                {% for mode in ["Cash", "Bank Transfer", "UPI", "Cheque", "Adjustment"] %}
+                                <option value="{{ mode }}" {% if mode == payment.payment_mode %}selected{% endif %}>{{ mode }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input form="paymentUpdate{{ payment.id }}" type="text" name="reference_no" value="{{ payment.reference_no or '' }}">
+                        </td>
+                        <td>
+                            <input form="paymentUpdate{{ payment.id }}" type="text" name="notes" value="{{ payment.notes or '' }}">
+                        </td>
+                        <td>
+                            <button form="paymentUpdate{{ payment.id }}" type="submit" class="btn-update-payment">
+                                <i class="bi bi-check2"></i>
+                                <span>Update</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="outstanding-empty-state compact">
+                                <i class="bi bi-cash-stack"></i>
+                                <strong>No payments entered yet</strong>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}

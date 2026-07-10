@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Stock Valuation Report
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/stock_valuation_report.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="stock-report-page">
+
+    <section class="stock-report-hero">
+
+        <div>
+            <span class="stock-report-kicker">Inventory Intelligence</span>
+            <h1>Stock Valuation Report</h1>
+            <p>
+                Review raw materials and finished product stock, low stock alerts, cost value and sale value in one report.
+            </p>
+        </div>
+
+        <button type="button"
+                class="btn-stock-print"
+                onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Print</span>
+        </button>
+
+    </section>
+
+    <section class="stock-report-summary">
+
+        <div class="stock-summary-tile">
+            <div class="stock-summary-icon icon-teal">
+                <i class="bi bi-boxes"></i>
+            </div>
+            <div>
+                <span>Total Items</span>
+                <strong>{{ total_items }}</strong>
+            </div>
+        </div>
+
+        <div class="stock-summary-tile">
+            <div class="stock-summary-icon icon-indigo">
+                <i class="bi bi-layers"></i>
+            </div>
+            <div>
+                <span>Total Quantity</span>
+                <strong>{{ "%.3f"|format(total_qty or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="stock-summary-tile">
+            <div class="stock-summary-icon icon-emerald">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+            <div>
+                <span>Cost Value</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_cost_value or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="stock-summary-tile">
+            <div class="stock-summary-icon icon-amber">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div>
+                <span>Stock Alerts</span>
+                <strong>{{ low_stock_count }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="stock-filter-panel">
+
+        <form method="get" action="/stock-valuation-report" class="stock-filter-form">
+
+            <div class="stock-filter-field">
+                <label>Item Type</label>
+                <div class="stock-input-shell">
+                    <i class="bi bi-filter-square"></i>
+                    <select name="item_type">
+                        <option value="all" {% if item_type == "all" %}selected{% endif %}>All Items</option>
+                        <option value="raw" {% if item_type == "raw" %}selected{% endif %}>Raw Materials</option>
+                        <option value="product" {% if item_type == "product" %}selected{% endif %}>Finished Products</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="stock-filter-field">
+                <label>Stock Status</label>
+                <div class="stock-input-shell">
+                    <i class="bi bi-activity"></i>
+                    <select name="stock_status">
+                        <option value="all" {% if stock_status == "all" %}selected{% endif %}>All Status</option>
+                        <option value="positive" {% if stock_status == "positive" %}selected{% endif %}>In Stock</option>
+                        <option value="low" {% if stock_status == "low" %}selected{% endif %}>Low Stock</option>
+                        <option value="zero" {% if stock_status == "zero" %}selected{% endif %}>No Stock</option>
+                        <option value="negative" {% if stock_status == "negative" %}selected{% endif %}>Negative Stock</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-stock-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+
+        </form>
+
+    </section>
+
+    <section class="stock-report-panel">
+
+        <div class="stock-panel-header">
+            <div>
+                <span class="stock-panel-label">Stock Register</span>
+                <h2>Inventory Valuation</h2>
+            </div>
+
+            <div class="stock-mini-counts">
+                <span>{{ raw_count }} Raw</span>
+                <span>{{ product_count }} Products</span>
+            </div>
+        </div>
+
+        <div class="stock-table-wrap">
+
+            <table class="stock-report-table">
+
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Item</th>
+                        <th>Type</th>
+                        <th>Unit/Category</th>
+                        <th>Stock</th>
+                        <th>Min Stock</th>
+                        <th>Cost Price</th>
+                        <th>Cost Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in report %}
+
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="stock-item-cell">
+                                <span class="stock-item-avatar">
+                                    {{ item.item_name[:1]|upper }}
+                                </span>
+                                <strong>{{ item.item_name }}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="stock-type-badge {{ item.item_type }}">
+                                {{ item.item_type_label }}
+                            </span>
+                        </td>
+                        <td>{{ item.unit or "-" }}</td>
+                        <td class="stock-number">{{ "%.3f"|format(item.stock_qty or 0) }}</td>
+                        <td class="stock-number">
+                            {% if item.item_type == "raw" %}
+                                {{ "%.3f"|format(item.minimum_stock or 0) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="stock-number">&#8377; {{ "%.2f"|format(item.cost_price or 0) }}</td>
+                        <td class="stock-number stock-value">&#8377; {{ "%.2f"|format(item.cost_value or 0) }}</td>
+                        <td>
+                            <span class="stock-status {{ item.status }}">
+                                {{ item.status_label }}
+                            </span>
+                        </td>
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="9">
+                            <div class="stock-empty-state">
+                                <i class="bi bi-inboxes"></i>
+                                <strong>No stock records found</strong>
+                                <span>Try changing the filters or add inventory masters first.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+                <tfoot>
+                    <tr>
+                        <td colspan="4">Grand Total</td>
+                        <td>{{ "%.3f"|format(total_qty or 0) }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>&#8377; {{ "{:,.2f}".format(total_cost_value or 0) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}

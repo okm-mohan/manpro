@@ -4,69 +4,134 @@
 Add Customer
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/customers.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="customers-page">
 
-    <h4 class="mb-4">Add Customer</h4>
+    <section class="customers-hero customer-form-hero">
 
-    <form method="post" action="/customer/save">
+        <div>
+            <span class="customer-kicker">Customer Master</span>
+            <h1>Add Customer</h1>
+            <p>
+                Create a customer profile with company, GST, contact and address details for sales workflows.
+            </p>
+        </div>
 
-        <div class="row">
+        <a href="/customers"
+           class="btn-customer-ghost">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
+        </a>
 
-            <div class="col-md-6 mb-3">
+    </section>
+
+    <section class="customers-panel customer-form-panel">
+
+        <div class="customer-panel-header">
+
+            <div>
+                <span class="customer-panel-label">Customer Details</span>
+                <h2>New Customer Entry</h2>
+            </div>
+
+            <span class="customer-record-count">
+                Customer master
+            </span>
+
+        </div>
+
+    <form method="post" action="/customer/save" class="customer-form">
+
+        <div class="customer-form-grid">
+
+            <div class="customer-form-field wide-field">
                 <label>Customer Name</label>
-                <input type="text"
-                       name="customer_name"
-                       class="form-control"
-                       required>
+                <div class="customer-input-shell">
+                    <i class="bi bi-person-badge"></i>
+                    <input type="text"
+                           name="customer_name"
+                           class="form-control"
+                           required>
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="customer-form-field">
                 <label>Company Name</label>
-                <input type="text"
-                       name="company_name"
-                       class="form-control">
+                <div class="customer-input-shell">
+                    <i class="bi bi-buildings"></i>
+                    <input type="text"
+                           name="company_name"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="customer-form-field">
                 <label>Mobile</label>
-                <input type="text"
-                       name="mobile"
-                       class="form-control">
+                <div class="customer-input-shell">
+                    <i class="bi bi-phone"></i>
+                    <input type="text"
+                           name="mobile"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="customer-form-field">
                 <label>Email</label>
-                <input type="email"
-                       name="email"
-                       class="form-control">
+                <div class="customer-input-shell">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email"
+                           name="email"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="customer-form-field">
                 <label>GST Number</label>
-                <input type="text"
-                       name="gst_number"
-                       class="form-control">
+                <div class="customer-input-shell">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <input type="text"
+                           name="gst_number"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-12 mb-3">
+            <div class="customer-form-field full-field">
                 <label>Address</label>
-                <textarea
-                    name="address"
-                    rows="4"
-                    class="form-control"></textarea>
+                <div class="customer-input-shell customer-textarea-shell">
+                    <i class="bi bi-map"></i>
+                    <textarea
+                        name="address"
+                        rows="4"
+                        class="form-control"></textarea>
+                </div>
             </div>
 
         </div>
 
-        <button
-            type="submit"
-            class="btn btn-success">
-            Save Customer
-        </button>
+        <div class="customer-form-actions">
+
+            <a href="/customers"
+               class="btn-customer-secondary">
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                class="btn-save-customer">
+                <i class="bi bi-check2-circle"></i>
+                <span>Save Customer</span>
+            </button>
+
+        </div>
 
     </form>
+
+    </section>
 
 </div>
 

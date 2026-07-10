@@ -4,69 +4,268 @@
 Customers
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/customers.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="customers-page">
 
-    <div class="d-flex justify-content-between mb-3">
+    <section class="customers-hero">
 
-        <h4>Customers</h4>
+        <div>
+            <span class="customer-kicker">Customer Master</span>
+            <h1>Customers</h1>
+            <p>
+                Manage customer profiles, company details, GST numbers and contact information for sales workflows.
+            </p>
+        </div>
 
         <a href="/customer/add"
-           class="btn btn-primary">
-            Add Customer
+           class="btn-add-customer">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Customer</span>
         </a>
+
+    </section>
+
+    <section class="customers-summary">
+
+        <div class="customer-summary-tile">
+            <div class="customer-summary-icon icon-emerald">
+                <i class="bi bi-people"></i>
+            </div>
+
+            <div>
+                <span>Total Customers</span>
+                <strong>{{ customers|length }}</strong>
+            </div>
+        </div>
+
+        <div class="customer-summary-tile">
+            <div class="customer-summary-icon icon-sky">
+                <i class="bi bi-buildings"></i>
+            </div>
+
+            <div>
+                <span>Companies</span>
+                <strong>{{ customers|length }}</strong>
+            </div>
+        </div>
+
+        <div class="customer-summary-tile">
+            <div class="customer-summary-icon icon-coral">
+                <i class="bi bi-receipt-cutoff"></i>
+            </div>
+
+            <div>
+                <span>GST Records</span>
+                <strong>{{ customers|selectattr("gst_number")|list|length }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="customers-panel">
+
+        <div class="customer-panel-header">
+
+            <div>
+                <span class="customer-panel-label">Customer Register</span>
+                <h2>Active Customers</h2>
+            </div>
+
+            <span class="customer-record-count">
+                {{ customers|length }} Records
+            </span>
+
+        </div>
+
+        <div class="customers-table-wrap">
+
+            <table class="customers-table">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Company</th>
+                        <th>Mobile</th>
+                        <th>GST</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                {% for item in customers %}
+
+                    <tr>
+
+                        <td>
+                            <span class="customer-id-pill">
+                                #{{ item.id }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="customer-name-cell">
+                                <span class="customer-avatar">
+                                    {{ item.customer_name[:1]|upper }}
+                                </span>
+
+                                <div>
+                                    <strong>{{ item.customer_name }}</strong>
+                                    <small>{{ item.email or "Customer contact" }}</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="customer-company-badge">
+                                {{ item.company_name or "-" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="customer-mobile-badge">
+                                {{ item.mobile or "-" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="customer-gst-badge">
+                                {{ item.gst_number or "Not added" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="customer-action-group">
+
+                                <a href="/customer/edit/{{ item.id }}"
+                                   class="customer-table-action customer-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/customer/delete/{{ item.id }}"
+                                   class="customer-table-action customer-delete-action"
+                                   data-delete-customer
+                                   data-customer-name="{{ item.customer_name }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                {% else %}
+
+                    <tr>
+                        <td colspan="6">
+                            <div class="customer-empty-state">
+                                <i class="bi bi-people"></i>
+                                <strong>No customers added yet</strong>
+                                <span>Create your first customer to start managing sales relationships.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade customer-delete-modal"
+     id="deleteCustomerModal"
+     tabindex="-1"
+     aria-labelledby="deleteCustomerModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="customer-delete-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="customer-delete-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deleteCustomerModalLabel">
+                    Delete customer?
+                </h3>
+
+                <p>
+                    <strong id="deleteCustomerName">This customer</strong>
+                    will be removed from the customer register. This action cannot be undone.
+                </p>
+
+                <div class="customer-delete-actions">
+
+                    <button type="button"
+                            class="btn-customer-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <a href="#"
+                       class="btn-customer-modal-delete"
+                       id="confirmDeleteCustomer">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Customer</span>
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
-    <table class="table table-hover">
-
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Customer</th>
-                <th>Company</th>
-                <th>Mobile</th>
-                <th>GST</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-
-        <tbody>
-
-        {% for item in customers %}
-
-            <tr>
-
-                <td>{{ item.id }}</td>
-                <td>{{ item.customer_name }}</td>
-                <td>{{ item.company_name }}</td>
-                <td>{{ item.mobile }}</td>
-                <td>{{ item.gst_number }}</td>
-
-                <td>
-
-                    <a href="/customer/edit/{{ item.id }}"
-   class="btn btn-warning btn-sm">
-   Edit
-</a>
-
-                    <a href="/customer/delete/{{ item.id }}"
-                       class="btn btn-danger btn-sm"
-                       onclick="return confirm('Delete Customer?')">
-                        Delete
-                    </a>
-
-                </td>
-
-            </tr>
-
-        {% endfor %}
-
-        </tbody>
-
-    </table>
-
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteCustomerModal");
+    const confirmButton = document.getElementById("confirmDeleteCustomer");
+    const customerName = document.getElementById("deleteCustomerName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-customer]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            customerName.textContent = link.dataset.customerName || "This customer";
+            deleteModal.show();
+        });
+    });
+});
+</script>
 
 {% endblock %}

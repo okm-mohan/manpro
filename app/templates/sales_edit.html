@@ -6,70 +6,89 @@
 
 {% block content %}
 
-<div class="purchase-add-page">
+<div class="sales-entry-page">
 
-    <div class="page-header">
+    <section class="sales-entry-hero">
 
         <div>
-            <h1>Sales Entry</h1>
-            <p>Create New Sales Invoice</p>
+            <span class="sales-entry-kicker">Revenue Desk</span>
+            <h1>Edit Sales</h1>
+            <p>Update customer invoice details and product line totals.</p>
         </div>
 
         <a href="/sales" class="btn-back">
-            Back
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
         </a>
 
-    </div>
+    </section>
 
-    <form method="post" action="/sales/update">
+    <form method="post" action="/sales/update" class="sales-entry-form">
 
         <input type="hidden" name="sale_id" value="{{ sale.id }}">
 
-        <!-- Header -->
+        <section class="sales-entry-panel">
 
-        <div class="glass-card">
+            <div class="sales-entry-panel-header">
+                <div>
+                    <span class="sales-entry-panel-label">Invoice Header</span>
+                    <h2>Customer Details</h2>
+                </div>
+                <span class="sales-entry-record-count">{{ sale.invoice_number }}</span>
+            </div>
 
             <div class="form-grid">
 
                 <div>
                     <label>Invoice Number</label>
-                    <input type="text" name="invoice_number" value="{{ sale.invoice_number }}" readonly>
+                    <div class="sales-form-shell">
+                        <i class="bi bi-hash"></i>
+                        <input
+                            type="text"
+                            name="invoice_number"
+                            value="{{ sale.invoice_number }}"
+                            readonly>
+                    </div>
                 </div>
 
                 <div>
                     <label>Sales Date</label>
-                    <input type="date" name="sale_date" value="{{ sale.sale_date }}" required>
+                    <div class="sales-form-shell">
+                        <i class="bi bi-calendar3"></i>
+                        <input
+                            type="date"
+                            name="sale_date"
+                            value="{{ sale.sale_date }}"
+                            required>
+                    </div>
                 </div>
 
                 <div>
-
                     <label>Customer</label>
-
-                    <select name="customer_id" required>
-
-                        {% for c in customers %}
-
-                        <option value="{{ c.id }}" {% if c.id==sale.customer_id %} selected {% endif %}>
-                            {{ c.customer_name }}
-                        </option>
-
-                        {% endfor %}
-
-                    </select>
-
+                    <div class="sales-form-shell">
+                        <i class="bi bi-person-badge"></i>
+                        <select name="customer_id" required>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}" {% if c.id==sale.customer_id %} selected {% endif %}>
+                                {{ c.customer_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
-        <!-- Items -->
-
-        <div class="glass-card">
+        <section class="sales-entry-panel">
 
             <div class="item-header">
 
-                <h3>Sales Items</h3>
+                <div>
+                    <span class="sales-entry-panel-label">Line Items</span>
+                    <h3>Sales Items</h3>
+                </div>
 
                 <button type="button" class="btn-add-row" onclick="addRow()">
                     + Add Row
@@ -80,9 +99,7 @@
             <table id="salesTable">
 
                 <thead>
-
                     <tr>
-
                         <th>Product</th>
                         <th>Qty</th>
                         <th>Rate</th>
@@ -90,9 +107,7 @@
                         <th>GST Amt</th>
                         <th>Total</th>
                         <th></th>
-
                     </tr>
-
                 </thead>
 
                 <tbody id="salesBody">
@@ -102,60 +117,56 @@
                     <tr>
 
                         <td>
-
                             <select name="product_id" required onchange="productChanged(this)">
-
                                 {% for p in products %}
-
-                                <option value="{{ p.id }}" data-rate="{{ p.sale_price }}" data-gst="{{ p.gst_percent }}"
-                                    {% if p.id==item.product_id %} selected {% endif %}>
+                                <option value="{{ p.id }}"
+                                        data-rate="{{ p.sale_price }}"
+                                        data-gst="{{ p.gst_percent }}"
+                                        {% if p.id==item.product_id %} selected {% endif %}>
                                     {{ p.product_name }}
                                 </option>
-
                                 {% endfor %}
-
                             </select>
-
                         </td>
 
                         <td>
-
-                            <input type="number" name="qty" value="{{ item.quantity }}" step="0.001"
-                                onkeyup="calculateRow(this)" onchange="calculateRow(this)">
-
+                            <input type="number"
+                                   name="qty"
+                                   value="{{ item.quantity }}"
+                                   step="0.001"
+                                   onkeyup="calculateRow(this)"
+                                   onchange="calculateRow(this)">
                         </td>
 
                         <td>
-
-                            <input type="number" name="rate" value="{{ item.price }}" step="0.01"
-                                onkeyup="calculateRow(this)" onchange="calculateRow(this)">
-
+                            <input type="number"
+                                   name="rate"
+                                   value="{{ item.price }}"
+                                   step="0.01"
+                                   onkeyup="calculateRow(this)"
+                                   onchange="calculateRow(this)">
                         </td>
 
                         <td>
-
-                            <input type="number" name="gst_percent" value="0">
-
+                            <input type="number"
+                                   name="gst_percent"
+                                   value="0"
+                                   onkeyup="calculateRow(this)"
+                                   onchange="calculateRow(this)">
                         </td>
 
                         <td>
-
                             <input type="number" name="gst_amount" value="0" readonly>
-
                         </td>
 
                         <td>
-
                             <input type="number" name="line_total" value="{{ item.total }}" readonly>
-
                         </td>
 
                         <td>
-
                             <button type="button" class="btn-remove" onclick="removeRow(this)">
                                 X
                             </button>
-
                         </td>
 
                     </tr>
@@ -166,32 +177,30 @@
 
             </table>
 
-        </div>
+        </section>
 
-        <!-- Totals -->
-
-        <div class="glass-card totals-card">
+        <section class="sales-entry-panel totals-card">
 
             <div class="total-row">
                 <span>Sub Total</span>
-                <span id="subTotal">₹ 0.00</span>
+                <span id="subTotal">&#8377; 0.00</span>
             </div>
 
             <div class="total-row">
                 <span>GST Total</span>
-                <span id="gstTotal">₹ 0.00</span>
+                <span id="gstTotal">&#8377; 0.00</span>
             </div>
 
             <div class="total-row grand">
                 <span>Grand Total</span>
-                <span id="grandTotal">₹ 0.00</span>
+                <span id="grandTotal">&#8377; 0.00</span>
             </div>
 
             <button type="submit" class="btn-save">
                 Update Sales
             </button>
 
-        </div>
+        </section>
 
     </form>
 
@@ -202,20 +211,17 @@
 {% block extra_js %}
 
 <script>
-
-    let productsOptions = `
+let productsOptions = `
 {% for p in products %}
 <option
     value="{{ p.id }}"
     data-rate="{{ p.sale_price }}"
     data-gst="{{ p.gst_percent }}"
-    data-stock="{{ p.stock_qty }}"
->
+    data-stock="{{ p.stock_qty }}">
 {{ p.product_name }}
 </option>
 {% endfor %}
 `;
-
 </script>
 
 <script src="/static/js/sales_add.js"></script>

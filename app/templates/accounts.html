@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Accounts
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/accounts.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="accounts-page">
+
+    <section class="accounts-hero">
+        <div>
+            <span class="accounts-kicker">Accounts Desk</span>
+            <h1>Expense & Income Management</h1>
+            <p>Enter income, expenses, payment modes, account heads and review ledger movement from one accounts workspace.</p>
+        </div>
+
+        <a href="/accounts-ledger" class="btn-account-hero">
+            <i class="bi bi-journal-text"></i>
+            <span>Ledger Report</span>
+        </a>
+    </section>
+
+    <section class="accounts-summary">
+        <div class="account-summary-tile">
+            <div class="account-summary-icon icon-income"><i class="bi bi-arrow-down-circle"></i></div>
+            <div>
+                <span>Total Income</span>
+                <strong>&#8377; {{ "{:,.2f}".format(income_total or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="account-summary-tile">
+            <div class="account-summary-icon icon-expense"><i class="bi bi-arrow-up-circle"></i></div>
+            <div>
+                <span>Total Expense</span>
+                <strong>&#8377; {{ "{:,.2f}".format(expense_total or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="account-summary-tile">
+            <div class="account-summary-icon icon-net"><i class="bi bi-graph-up"></i></div>
+            <div>
+                <span>Net Balance</span>
+                <strong>&#8377; {{ "{:,.2f}".format(net_total or 0) }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="accounts-grid">
+
+        <div class="accounts-panel">
+            <div class="account-panel-header">
+                <div>
+                    <span class="account-panel-label">Account Head</span>
+                    <h2>Create Head</h2>
+                </div>
+            </div>
+
+            <form method="post" action="/account-head/save" class="account-mini-form">
+                <div class="account-form-field">
+                    <label>Account Name</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-bookmark-plus"></i>
+                        <input type="text" name="account_name" required placeholder="Rent, Transport, Other Income">
+                    </div>
+                </div>
+
+                <div class="account-form-field">
+                    <label>Type</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-diagram-2"></i>
+                        <select name="account_type" required>
+                            <option value="Expense">Expense</option>
+                            <option value="Income">Income</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save-account">
+                    <i class="bi bi-save2"></i>
+                    <span>Save Head</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="accounts-panel transaction-panel">
+            <div class="account-panel-header">
+                <div>
+                    <span class="account-panel-label">Daily Entry</span>
+                    <h2>Income / Expense Entry</h2>
+                </div>
+            </div>
+
+            <form method="post" action="/account-transaction/save" class="account-entry-form">
+                <div class="account-form-field">
+                    <label>Date</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-calendar3"></i>
+                        <input type="date" name="transaction_date" value="{{ today }}" required>
+                    </div>
+                </div>
+
+                <div class="account-form-field wide-field">
+                    <label>Account</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-journal-bookmark"></i>
+                        <select name="account_id" required>
+                            <option value="">Select Account</option>
+                            {% for head in heads %}
+                            <option value="{{ head.id }}">{{ head.account_type }} - {{ head.account_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="account-form-field">
+                    <label>Amount</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-currency-rupee"></i>
+                        <input type="number" step="0.01" name="amount" required>
+                    </div>
+                </div>
+
+                <div class="account-form-field">
+                    <label>Mode</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-credit-card"></i>
+                        <select name="payment_mode">
+                            <option>Cash</option>
+                            <option>Bank Transfer</option>
+                            <option>UPI</option>
+                            <option>Cheque</option>
+                            <option>Card</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="account-form-field">
+                    <label>Reference</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-hash"></i>
+                        <input type="text" name="reference_no">
+                    </div>
+                </div>
+
+                <div class="account-form-field full-field">
+                    <label>Narration</label>
+                    <div class="account-input-shell">
+                        <i class="bi bi-pencil-square"></i>
+                        <input type="text" name="narration">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save-account">
+                    <i class="bi bi-save2"></i>
+                    <span>Save Entry</span>
+                </button>
+            </form>
+        </div>
+
+    </section>
+
+    <section class="accounts-filter-panel">
+        <form method="get" action="/accounts" class="accounts-filter-form">
+            <div class="account-form-field">
+                <label>From Date</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" name="from_date" value="{{ from_date }}">
+                </div>
+            </div>
+
+            <div class="account-form-field">
+                <label>To Date</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-calendar-check"></i>
+                    <input type="date" name="to_date" value="{{ to_date }}">
+                </div>
+            </div>
+
+            <div class="account-form-field">
+                <label>Type</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-filter"></i>
+                    <select name="account_type">
+                        <option value="all" {% if account_type == "all" %}selected{% endif %}>All</option>
+                        <option value="Income" {% if account_type == "Income" %}selected{% endif %}>Income</option>
+                        <option value="Expense" {% if account_type == "Expense" %}selected{% endif %}>Expense</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="account-form-field wide-field">
+                <label>Account</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-journal"></i>
+                    <select name="account_id">
+                        <option value="0">All Accounts</option>
+                        {% for head in heads %}
+                        <option value="{{ head.id }}" {% if head.id == account_id %}selected{% endif %}>
+                            {{ head.account_type }} - {{ head.account_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-account-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="accounts-panel">
+        <div class="account-panel-header">
+            <div>
+                <span class="account-panel-label">Accounts Register</span>
+                <h2>Recent Income & Expenses</h2>
+            </div>
+            <span class="account-record-count">{{ transactions|length }} Records</span>
+        </div>
+
+        <div class="accounts-table-wrap">
+            <table class="accounts-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Account</th>
+                        <th>Type</th>
+                        <th>Mode</th>
+                        <th>Reference</th>
+                        <th>Narration</th>
+                        <th>Amount</th>
+                        <th>Update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in transactions %}
+                    <tr>
+                        <td>
+                            <form id="accountUpdate{{ row.id }}" method="post" action="/account-transaction/update"></form>
+                            <input form="accountUpdate{{ row.id }}" type="hidden" name="transaction_id" value="{{ row.id }}">
+                            <input form="accountUpdate{{ row.id }}" type="date" name="transaction_date" value="{{ row.transaction_date }}" required>
+                        </td>
+                        <td>
+                            <select form="accountUpdate{{ row.id }}" name="account_id" required>
+                                {% for head in heads %}
+                                <option value="{{ head.id }}" {% if head.id == row.account_id %}selected{% endif %}>
+                                    {{ head.account_type }} - {{ head.account_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><span class="account-type-badge {{ row.account_type|lower }}">{{ row.account_type }}</span></td>
+                        <td>
+                            <select form="accountUpdate{{ row.id }}" name="payment_mode">
+                                {% for mode in ["Cash", "Bank Transfer", "UPI", "Cheque", "Card"] %}
+                                <option value="{{ mode }}" {% if mode == row.payment_mode %}selected{% endif %}>{{ mode }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><input form="accountUpdate{{ row.id }}" type="text" name="reference_no" value="{{ row.reference_no or '' }}"></td>
+                        <td><input form="accountUpdate{{ row.id }}" type="text" name="narration" value="{{ row.narration or '' }}"></td>
+                        <td><input form="accountUpdate{{ row.id }}" type="number" step="0.01" name="amount" value="{{ row.amount }}" required></td>
+                        <td>
+                            <div class="account-action-group">
+                                <button form="accountUpdate{{ row.id }}" type="submit" class="btn-update-account">
+                                    <i class="bi bi-check2"></i>
+                                    <span>Update</span>
+                                </button>
+                                <a href="/account-transaction/delete/{{ row.id }}" class="btn-delete-account">
+                                    <i class="bi bi-trash3"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="account-empty-state">
+                                <i class="bi bi-journal-x"></i>
+                                <strong>No accounts entries found</strong>
+                                <span>Create account heads and add income or expense entries.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Salary Receipt
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/employees.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="employees-page salary-page">
+
+    <section class="employees-hero salary-hero no-print">
+        <div>
+            <span class="employee-kicker">Payroll Receipt</span>
+            <h1>Salary Receipt</h1>
+            <p>View and print employee salary receipt based on monthly attendance, advance and deductions.</p>
+        </div>
+
+        <button type="button" class="btn-add-employee" onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Print A4 Receipt</span>
+        </button>
+    </section>
+
+    <section class="attendance-filter-panel no-print">
+        <form method="get" action="/salary-receipt" class="attendance-filter-form salary-filter-form">
+            <div class="employee-form-field wide-field">
+                <label>Employee</label>
+                <div class="employee-input-shell">
+                    <i class="bi bi-person-badge"></i>
+                    <select name="employee_id">
+                        {% for item in employees %}
+                        <option value="{{ item.id }}" {% if item.id == employee_id %}selected{% endif %}>
+                            {{ item.employee_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="employee-form-field">
+                <label>Month</label>
+                <div class="employee-input-shell">
+                    <i class="bi bi-calendar-month"></i>
+                    <select name="month">
+                        {% for item in months %}
+                        <option value="{{ item.id }}" {% if item.id == month %}selected{% endif %}>{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="employee-form-field">
+                <label>Year</label>
+                <div class="employee-input-shell">
+                    <i class="bi bi-calendar3"></i>
+                    <select name="year">
+                        {% for item in years %}
+                        <option value="{{ item }}" {% if item == year %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save-employee">
+                <i class="bi bi-search"></i>
+                <span>View Receipt</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="salary-receipt-sheet">
+        {% if employee and salary %}
+        <header class="salary-receipt-header">
+            <h2>{{ company.company_name if company else "Company Name" }}</h2>
+            <p>
+                {% if company %}
+                    {{ company.address or "" }}
+                    {% if company.city %}, {{ company.city }}{% endif %}
+                    {% if company.state %}, {{ company.state }}{% endif %}
+                    {% if company.pincode %} - {{ company.pincode }}{% endif %}
+                {% else %}
+                    Company address not configured
+                {% endif %}
+            </p>
+            <strong>Salary Receipt</strong>
+        </header>
+
+        <div class="salary-receipt-meta">
+            <div>
+                <span>Employee</span>
+                <strong>{{ employee.employee_name }}</strong>
+            </div>
+            <div>
+                <span>Employee Code</span>
+                <strong>{{ employee.employee_code or "-" }}</strong>
+            </div>
+            <div>
+                <span>Designation</span>
+                <strong>{{ employee.designation or "-" }}</strong>
+            </div>
+            <div>
+                <span>Month</span>
+                <strong>
+                    {% for item in months %}
+                        {% if item.id == month %}{{ item.name }}{% endif %}
+                    {% endfor %}
+                    {{ year }}
+                </strong>
+            </div>
+        </div>
+
+        <table class="salary-receipt-table">
+            <tbody>
+                <tr>
+                    <th>Monthly Salary</th>
+                    <td>&#8377; {{ "%.2f"|format(employee.monthly_salary or 0) }}</td>
+                    <th>Total Month Days</th>
+                    <td>{{ salary.days_in_month }}</td>
+                </tr>
+                <tr>
+                    <th>Present Days</th>
+                    <td>{{ "%.1f"|format(salary.present_days) }}</td>
+                    <th>Leave Days</th>
+                    <td>{{ "%.1f"|format(salary.leave_days) }}</td>
+                </tr>
+                <tr>
+                    <th>Absent Days</th>
+                    <td>{{ "%.1f"|format(salary.absent_days) }}</td>
+                    <th>Payable Days</th>
+                    <td>{{ "%.1f"|format(salary.payable_days) }}</td>
+                </tr>
+                <tr>
+                    <th>Per Day Salary</th>
+                    <td>&#8377; {{ "%.2f"|format(salary.per_day_salary) }}</td>
+                    <th>Earned Salary</th>
+                    <td>&#8377; {{ "%.2f"|format(salary.earned_salary) }}</td>
+                </tr>
+                <tr>
+                    <th>Overtime Amount</th>
+                    <td>&#8377; {{ "%.2f"|format(salary.overtime_amount) }}</td>
+                    <th>Advance Amount</th>
+                    <td>&#8377; {{ "%.2f"|format(salary.advance_amount) }}</td>
+                </tr>
+                <tr>
+                    <th>Other Deduction</th>
+                    <td>&#8377; {{ "%.2f"|format(salary.deduction_amount) }}</td>
+                    <th>Net Salary</th>
+                    <td class="salary-net">&#8377; {{ "%.2f"|format(salary.net_salary) }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="salary-signatures">
+            <div>Employee Signature</div>
+            <div>Authorized Signature</div>
+        </div>
+        {% else %}
+        <div class="employee-empty-state salary-empty">
+            <i class="bi bi-receipt"></i>
+            <strong>No salary receipt available</strong>
+            <span>Add employees and attendance first.</span>
+        </div>
+        {% endif %}
+    </section>
+
+</div>
+
+{% endblock %}

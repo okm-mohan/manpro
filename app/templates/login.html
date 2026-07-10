@@ -48,6 +48,12 @@
 
             <form action="/login" method="post" id="loginForm">
 
+                {% if error %}
+                <div class="login-error">
+                    {{ error }}
+                </div>
+                {% endif %}
+
                 <div class="input-group">
 
                     <label>Username</label>

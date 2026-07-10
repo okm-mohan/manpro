@@ -4,78 +4,158 @@
 Add Product
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/products.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="products-page">
 
-    <h4 class="mb-4">Add Product</h4>
+    <section class="products-hero product-form-hero">
 
-    <form method="post" action="/product/save">
+        <div>
+            <span class="product-kicker">Finished Goods Master</span>
+            <h1>Add Product</h1>
+            <p>
+                Create a sale-ready product with category, specification, GST and pricing details.
+            </p>
+        </div>
 
-        <div class="row">
+        <a href="/products"
+           class="btn-product-ghost">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
+        </a>
 
-            <div class="col-md-6 mb-3">
+    </section>
+
+    <section class="products-panel product-form-panel">
+
+        <div class="product-panel-header">
+
+            <div>
+                <span class="product-panel-label">Product Details</span>
+                <h2>New Product Entry</h2>
+            </div>
+
+            <span class="product-record-count">
+                Product master
+            </span>
+
+        </div>
+
+    <form method="post" action="/product/save" class="product-form">
+
+        <div class="product-form-grid">
+
+            <div class="product-form-field wide-field">
                 <label>Product Name</label>
-                <input type="text" name="product_name" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-bag-check"></i>
+                    <input type="text" name="product_name" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="product-form-field">
                 <label>Product Code</label>
-                <input type="text" name="product_code" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-upc-scan"></i>
+                    <input type="text" name="product_code" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Category</label>
-                <input type="text" name="category" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-tags"></i>
+                    <input type="text" name="category" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Product Type</label>
-                <input type="text" name="product_type" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-grid"></i>
+                    <input type="text" name="product_type" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Size</label>
-                <input type="text" name="size" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-aspect-ratio"></i>
+                    <input type="text" name="size" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>GSM</label>
-                <input type="text" name="gsm" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-stack"></i>
+                    <input type="text" name="gsm" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Color</label>
-                <input type="text" name="color" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-palette"></i>
+                    <input type="text" name="color" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>HSN Code</label>
-                <input type="text" name="hsn_code" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-receipt"></i>
+                    <input type="text" name="hsn_code" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>GST %</label>
-                <input type="number" step="0.01" name="gst_percent" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-percent"></i>
+                    <input type="number" step="0.01" name="gst_percent" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Purchase Price</label>
-                <input type="number" step="0.01" name="purchase_price" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-currency-rupee"></i>
+                    <input type="number" step="0.01" name="purchase_price" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="product-form-field">
                 <label>Sale Price</label>
-                <input type="number" step="0.01" name="sale_price" class="form-control">
+                <div class="product-input-shell">
+                    <i class="bi bi-cash-coin"></i>
+                    <input type="number" step="0.01" name="sale_price" class="form-control">
+                </div>
             </div>
 
         </div>
 
-        <button type="submit" class="btn btn-success">
-            Save Product
-        </button>
+        <div class="product-form-actions">
+
+            <a href="/products"
+               class="btn-product-secondary">
+                Cancel
+            </a>
+
+            <button type="submit" class="btn-save-product">
+                <i class="bi bi-check2-circle"></i>
+                <span>Save Product</span>
+            </button>
+
+        </div>
 
     </form>
+
+    </section>
 
 </div>
 

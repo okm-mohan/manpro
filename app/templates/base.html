@@ -68,15 +68,15 @@
 
                             <i class="bi bi-person-circle fs-4"></i>
 
-                            <span class="ms-2">Administrator</span>
+                            <span class="ms-2">{{ request.session.get("full_name", request.session.get("user", "Administrator")) }}</span>
 
                         </button>
 
                         <ul class="dropdown-menu dropdown-menu-end user-menu shadow">
 
                             <li class="dropdown-header">
-                                <strong>Administrator</strong><br>
-                                <small class="text-muted">System Administrator</small>
+                                <strong>{{ request.session.get("full_name", request.session.get("user", "Administrator")) }}</strong><br>
+                                <small class="text-muted">{{ request.session.get("role", "Admin") }}</small>
                             </li>
 
                             <li>

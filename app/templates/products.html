@@ -4,68 +4,280 @@
 Products
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/products.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+{% set ns = namespace(total_stock=0, stock_warnings=0) %}
+{% for item in products %}
+    {% set ns.total_stock = ns.total_stock + (item.stock_qty or 0) %}
+    {% if item.stock_qty is not none and item.stock_qty <= 0 %}
+        {% set ns.stock_warnings = ns.stock_warnings + 1 %}
+    {% endif %}
+{% endfor %}
 
-    <div class="d-flex justify-content-between mb-3">
+<div class="products-page">
 
-        <h4>Products</h4>
+    <section class="products-hero">
 
-        <a href="/product/add" class="btn btn-primary">
-            Add Product
+        <div>
+            <span class="product-kicker">Finished Goods Master</span>
+            <h1>Products</h1>
+            <p>
+                Manage sale-ready products, pricing, HSN details and available stock from a polished product register.
+            </p>
+        </div>
+
+        <a href="/product/add" class="btn-add-product">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Product</span>
         </a>
+
+    </section>
+
+    <section class="products-summary">
+
+        <div class="product-summary-tile">
+            <div class="product-summary-icon icon-purple">
+                <i class="bi bi-bag-check"></i>
+            </div>
+
+            <div>
+                <span>Total Products</span>
+                <strong>{{ products|length }}</strong>
+            </div>
+        </div>
+
+        <div class="product-summary-tile">
+            <div class="product-summary-icon icon-rose">
+                <i class="bi bi-boxes"></i>
+            </div>
+
+            <div>
+                <span>Total Stock</span>
+                <strong>{{ "%.2f"|format(ns.total_stock) }}</strong>
+            </div>
+        </div>
+
+        <div class="product-summary-tile">
+            <div class="product-summary-icon icon-gold">
+                <i class="bi bi-activity"></i>
+            </div>
+
+            <div>
+                <span>Stock Warnings</span>
+                <strong>{{ ns.stock_warnings }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="products-panel">
+
+        <div class="product-panel-header">
+
+            <div>
+                <span class="product-panel-label">Product Register</span>
+                <h2>Available Products</h2>
+            </div>
+
+            <span class="product-record-count">
+                {{ products|length }} Records
+            </span>
+
+        </div>
+
+        <div class="products-table-wrap">
+
+            <table class="products-table">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Product</th>
+                        <th>Code</th>
+                        <th>Category</th>
+                        <th>Sale Price</th>
+                        <th>Stock</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in products %}
+
+                    <tr>
+
+                        <td>
+                            <span class="product-id-pill">
+                                #{{ item.id }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="product-name-cell">
+                                <span class="product-avatar">
+                                    {{ item.product_name[:1]|upper }}
+                                </span>
+
+                                <div>
+                                    <strong>{{ item.product_name }}</strong>
+                                    <small>{{ item.product_type or "Finished product" }}</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="code-badge">
+                                {{ item.product_code or "-" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="category-badge">
+                                {{ item.category or "Uncategorized" }}
+                            </span>
+                        </td>
+
+                        <td class="product-numeric-cell">
+                            {{ "%.2f"|format(item.sale_price or 0) }}
+                        </td>
+
+                        <td class="product-numeric-cell">
+                            <span class="product-stock-badge {% if item.stock_qty is not none and item.stock_qty <= 0 %}stock-warning{% else %}stock-ready{% endif %}">
+                                {{ "%.2f"|format(item.stock_qty or 0) }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="product-action-group">
+
+                                <a href="/product/edit/{{ item.id }}"
+                                   class="product-table-action product-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/product/delete/{{ item.id }}"
+                                   class="product-table-action product-delete-action"
+                                   data-delete-product
+                                   data-product-name="{{ item.product_name }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="7">
+                            <div class="product-empty-state">
+                                <i class="bi bi-bag-x"></i>
+                                <strong>No products added yet</strong>
+                                <span>Create your first finished product to start tracking sales inventory.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade product-delete-modal"
+     id="deleteProductModal"
+     tabindex="-1"
+     aria-labelledby="deleteProductModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="product-delete-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="product-delete-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deleteProductModalLabel">
+                    Delete product?
+                </h3>
+
+                <p>
+                    <strong id="deleteProductName">This product</strong>
+                    will be removed from the product register. This action cannot be undone.
+                </p>
+
+                <div class="product-delete-actions">
+
+                    <button type="button"
+                            class="btn-product-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <a href="#"
+                       class="btn-product-modal-delete"
+                       id="confirmDeleteProduct">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Product</span>
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
-    <table class="table table-hover">
-
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Product</th>
-                <th>Code</th>
-                <th>Category</th>
-                <th>Sale Price</th>
-                <th>Stock</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-
-        <tbody>
-
-            {% for item in products %}
-
-            <tr>
-
-                <td>{{ item.id }}</td>
-                <td>{{ item.product_name }}</td>
-                <td>{{ item.product_code }}</td>
-                <td>{{ item.category }}</td>
-                <td>{{ item.sale_price }}</td>
-                <td>{{ item.stock_qty }}</td>
-
-                <td>
-
-                    <a href="/product/edit/{{ item.id }}" class="btn btn-warning btn-sm">
-                        Edit
-                    </a>
-
-                    <a href="/product/delete/{{ item.id }}" class="btn btn-danger btn-sm"
-                        onclick="return confirm('Delete Product?')">
-                        Delete
-                    </a>
-
-                </td>
-
-            </tr>
-
-            {% endfor %}
-
-        </tbody>
-
-    </table>
-
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteProductModal");
+    const confirmButton = document.getElementById("confirmDeleteProduct");
+    const productName = document.getElementById("deleteProductName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-product]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            productName.textContent = link.dataset.productName || "This product";
+            deleteModal.show();
+        });
+    });
+});
+</script>
 
 {% endblock %}

@@ -1,286 +1,149 @@
-/*=========================================
-        MANUFACTURING ERP DASHBOARD
-=========================================*/
-
 document.addEventListener("DOMContentLoaded", function () {
-
     startClock();
     setGreeting();
-
-    animateCounter("salesCounter", 245600, "₹ ");
-    animateCounter("purchaseCounter", 152800, "₹ ");
-    animateCounter("profitCounter", 92800, "₹ ");
-
+    animateMoneyCounters();
     loadSalesChart();
-    loadStockChart();
-
-    floatingButton();
-
 });
 
+function startClock() {
+    const dateElement = document.getElementById("todayDate");
+    const clockElement = document.getElementById("liveClock");
 
-/*=========================================
-        LIVE CLOCK
-=========================================*/
+    function update() {
+        const now = new Date();
 
-function startClock(){
+        if (dateElement) {
+            dateElement.textContent = now.toLocaleDateString("en-IN", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
+        }
 
-    const dateElement=document.getElementById("todayDate");
-    const clockElement=document.getElementById("liveClock");
-
-    function update(){
-
-        const now=new Date();
-
-        dateElement.innerHTML=now.toLocaleDateString(
-            "en-IN",
-            {
-                weekday:"long",
-                year:"numeric",
-                month:"long",
-                day:"numeric"
-            }
-        );
-
-        clockElement.innerHTML=now.toLocaleTimeString(
-            "en-IN"
-        );
-
+        if (clockElement) {
+            clockElement.textContent = now.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            });
+        }
     }
 
     update();
-
-    setInterval(update,1000);
-
+    setInterval(update, 1000);
 }
 
+function setGreeting() {
+    const hour = new Date().getHours();
+    const heading = document.getElementById("dashboardGreeting");
 
-/*=========================================
-        GREETING
-=========================================*/
-
-function setGreeting(){
-
-    const hour=new Date().getHours();
-
-    let greet="Good Evening";
-
-    if(hour<12){
-
-        greet="Good Morning";
-
-    }
-    else if(hour<17){
-
-        greet="Good Afternoon";
-
+    if (!heading) {
+        return;
     }
 
-    const heading=document.querySelector(".welcome-left h2");
+    let greeting = "Good Evening";
 
-    if(heading){
-
-        heading.innerHTML=greet+", Administrator 👋";
-
+    if (hour < 12) {
+        greeting = "Good Morning";
+    } else if (hour < 17) {
+        greeting = "Good Afternoon";
     }
 
+    heading.textContent = `${greeting}, Administrator`;
 }
 
+function animateMoneyCounters() {
+    document.querySelectorAll("[data-counter]").forEach(function (element) {
+        const target = Number(element.dataset.counter || 0);
+        const steps = 36;
+        const increment = target / steps;
+        let current = 0;
+        let tick = 0;
 
-/*=========================================
-        COUNTER ANIMATION
-=========================================*/
+        const timer = setInterval(function () {
+            tick += 1;
+            current += increment;
 
-function animateCounter(id,target,prefix=""){
-
-    const element=document.getElementById(id);
-
-    if(!element) return;
-
-    let current=0;
-
-    const step=Math.ceil(target/120);
-
-    const timer=setInterval(()=>{
-
-        current+=step;
-
-        if(current>=target){
-
-            current=target;
-
-            clearInterval(timer);
-
-        }
-
-        element.innerHTML=
-            prefix+
-            current.toLocaleString("en-IN");
-
-    },15);
-
-}
-
-
-/*=========================================
-        SALES CHART
-=========================================*/
-
-function loadSalesChart(){
-
-    const canvas=document.getElementById("salesChart");
-
-    if(!canvas) return;
-
-    new Chart(canvas,{
-
-        type:"line",
-
-        data:{
-
-            labels:[
-                "Jan",
-                "Feb",
-                "Mar",
-                "Apr",
-                "May",
-                "Jun",
-                "Jul"
-            ],
-
-            datasets:[{
-
-                label:"Sales",
-
-                data:[
-                    20,
-                    28,
-                    35,
-                    42,
-                    55,
-                    61,
-                    74
-                ],
-
-                borderColor:"#2563eb",
-
-                backgroundColor:"rgba(37,99,235,.15)",
-
-                fill:true,
-
-                tension:.4
-
-            }]
-
-        },
-
-        options:{
-
-            responsive:true,
-
-            plugins:{
-
-                legend:{
-                    display:false
-                }
-
+            if (tick >= steps) {
+                current = target;
+                clearInterval(timer);
             }
 
-        }
-
+            element.textContent = "\u20B9 " + Math.round(current).toLocaleString("en-IN");
+        }, 18);
     });
-
 }
 
+function loadSalesChart() {
+    const canvas = document.getElementById("salesChart");
 
-/*=========================================
-        INVENTORY CHART
-=========================================*/
+    if (!canvas || typeof Chart === "undefined") {
+        return;
+    }
 
-function loadStockChart(){
+    let labels = [];
+    let values = [];
 
-    const canvas=document.getElementById("stockChart");
+    try {
+        labels = JSON.parse(canvas.dataset.labels || "[]");
+        values = JSON.parse(canvas.dataset.values || "[]").map(Number);
+    } catch (error) {
+        labels = [];
+        values = [];
+    }
 
-    if(!canvas) return;
+    if (!labels.length) {
+        labels = ["No Data"];
+        values = [0];
+    }
 
-    new Chart(canvas,{
-
-        type:"doughnut",
-
-        data:{
-
-            labels:[
-                "Raw Material",
-                "Finished",
-                "Waste"
-            ],
-
-            datasets:[{
-
-                data:[
-                    55,
-                    35,
-                    10
-                ],
-
-                backgroundColor:[
-
-                    "#2563eb",
-                    "#10b981",
-                    "#ef4444"
-
-                ]
-
+    new Chart(canvas, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                label: "Sales",
+                data: values,
+                borderColor: "#0e7490",
+                backgroundColor: "rgba(14,116,144,.12)",
+                pointBackgroundColor: "#047857",
+                pointBorderColor: "#ffffff",
+                pointRadius: 4,
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35
             }]
-
         },
-
-        options:{
-
-            responsive:true,
-
-            plugins:{
-
-                legend:{
-                    position:"bottom"
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return "\u20B9 " + Number(context.parsed.y || 0).toLocaleString("en-IN");
+                        }
+                    }
                 }
-
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: "#64748b", font: { weight: "700" } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "rgba(148,163,184,.22)" },
+                    ticks: {
+                        color: "#64748b",
+                        callback: function (value) {
+                            return "\u20B9 " + Number(value).toLocaleString("en-IN");
+                        }
+                    }
+                }
             }
-
         }
-
     });
-
 }
-
-
-/*=========================================
-        FLOATING BUTTON
-=========================================*/
-
-function floatingButton(){
-
-    const fab=document.querySelector(".fab-button");
-
-    if(!fab) return;
-
-    fab.addEventListener("click",function(){
-
-        alert(
-            "Quick Menu\n\nPurchase\nSales\nProduction\nExpense"
-        );
-
-    });
-
-}
-
-
-/*=========================================
-        AUTO REFRESH PLACEHOLDER
-=========================================*/
-
-setInterval(function(){
-
-    console.log("Dashboard refreshed...");
-
-},60000);

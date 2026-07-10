@@ -4,83 +4,154 @@
 Add Supplier
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/suppliers.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="suppliers-page">
 
-    <h4 class="mb-4">Add Supplier</h4>
+    <section class="suppliers-hero supplier-form-hero">
 
-    <form method="post" action="/supplier/save">
+        <div>
+            <span class="supplier-kicker">Vendor Master</span>
+            <h1>Add Supplier</h1>
+            <p>
+                Create a supplier profile with company, tax, contact and address details for purchase workflows.
+            </p>
+        </div>
 
-        <div class="row">
+        <a href="/suppliers"
+           class="btn-supplier-ghost">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
+        </a>
 
-            <div class="col-md-6 mb-3">
+    </section>
+
+    <section class="suppliers-panel supplier-form-panel">
+
+        <div class="supplier-panel-header">
+
+            <div>
+                <span class="supplier-panel-label">Supplier Details</span>
+                <h2>New Supplier Entry</h2>
+            </div>
+
+            <span class="supplier-record-count">
+                Vendor master
+            </span>
+
+        </div>
+
+    <form method="post" action="/supplier/save" class="supplier-form">
+
+        <div class="supplier-form-grid">
+
+            <div class="supplier-form-field wide-field">
                 <label>Supplier Name</label>
-                <input type="text"
-                       name="supplier_name"
-                       class="form-control"
-                       required>
+                <div class="supplier-input-shell">
+                    <i class="bi bi-person-badge"></i>
+                    <input type="text"
+                           name="supplier_name"
+                           class="form-control"
+                           required>
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="supplier-form-field">
                 <label>Company Name</label>
-                <input type="text"
-                       name="company_name"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-buildings"></i>
+                    <input type="text"
+                           name="company_name"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="supplier-form-field">
                 <label>GST Number</label>
-                <input type="text"
-                       name="gst_number"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <input type="text"
+                           name="gst_number"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="supplier-form-field">
                 <label>Phone</label>
-                <input type="text"
-                       name="phone"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-telephone"></i>
+                    <input type="text"
+                           name="phone"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="supplier-form-field">
                 <label>Mobile</label>
-                <input type="text"
-                       name="mobile"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-phone"></i>
+                    <input type="text"
+                           name="mobile"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="supplier-form-field">
                 <label>Email</label>
-                <input type="email"
-                       name="email"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email"
+                           name="email"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="supplier-form-field">
                 <label>State</label>
-                <input type="text"
-                       name="state"
-                       class="form-control">
+                <div class="supplier-input-shell">
+                    <i class="bi bi-geo-alt"></i>
+                    <input type="text"
+                           name="state"
+                           class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-12 mb-3">
+            <div class="supplier-form-field full-field">
                 <label>Address</label>
-                <textarea
-                    name="address"
-                    rows="4"
-                    class="form-control"></textarea>
+                <div class="supplier-input-shell textarea-shell">
+                    <i class="bi bi-map"></i>
+                    <textarea
+                        name="address"
+                        rows="4"
+                        class="form-control"></textarea>
+                </div>
             </div>
 
         </div>
 
-        <button
-            type="submit"
-            class="btn btn-success">
-            Save Supplier
-        </button>
+        <div class="supplier-form-actions">
+
+            <a href="/suppliers"
+               class="btn-supplier-secondary">
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                class="btn-save-supplier">
+                <i class="bi bi-check2-circle"></i>
+                <span>Save Supplier</span>
+            </button>
+
+        </div>
 
     </form>
+
+    </section>
 
 </div>
 

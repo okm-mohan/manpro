@@ -99,7 +99,7 @@ function addRow() {
             class="btn-remove"
             onclick="removeRow(this)"
         >
-            ✕
+            X
         </button>
     </td>
 
@@ -258,19 +258,19 @@ function calculateTotals(){
     document.getElementById(
         "subTotal"
     ).innerHTML =
-        "₹ " +
+        "\u20B9 " +
         subTotal.toFixed(2);
 
     document.getElementById(
         "gstTotal"
     ).innerHTML =
-        "₹ " +
+        "\u20B9 " +
         gstTotal.toFixed(2);
 
     document.getElementById(
         "grandTotal"
     ).innerHTML =
-        "₹ " +
+        "\u20B9 " +
         grandTotal.toFixed(2);
 }
 

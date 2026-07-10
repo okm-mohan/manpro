@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Customer Outstanding Report
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/customer_outstanding_report.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="customer-outstanding-page">
+
+    <section class="customer-outstanding-hero">
+        <div>
+            <span class="customer-outstanding-kicker">Receivables Desk</span>
+            <h1>Customer Outstanding Report</h1>
+            <p>Track customer sales value, payments received, pending collection and recent receipt updates in one clean report.</p>
+        </div>
+
+        <button type="button" class="btn-customer-outstanding-print" onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Print</span>
+        </button>
+    </section>
+
+    <section class="customer-outstanding-summary">
+        <div class="customer-outstanding-summary-tile">
+            <div class="customer-outstanding-summary-icon icon-sales">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div>
+                <span>Sales Value</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_sale_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="customer-outstanding-summary-tile">
+            <div class="customer-outstanding-summary-icon icon-received">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div>
+                <span>Received</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_received_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="customer-outstanding-summary-tile">
+            <div class="customer-outstanding-summary-icon icon-balance">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <div>
+                <span>Balance</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_balance_amount or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="customer-outstanding-summary-tile">
+            <div class="customer-outstanding-summary-icon icon-alert">
+                <i class="bi bi-bell"></i>
+            </div>
+            <div>
+                <span>Due Customers</span>
+                <strong>{{ due_customer_count }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="customer-receipt-panel">
+        <div class="customer-outstanding-panel-header">
+            <div>
+                <span class="customer-outstanding-panel-label">Receipt Entry</span>
+                <h2>Record Customer Payment</h2>
+            </div>
+        </div>
+
+        <form method="post" action="/customer-payment/save" class="customer-receipt-form">
+            <div class="customer-payment-field wide">
+                <label>Customer</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-person-badge"></i>
+                    <select name="customer_id" required>
+                        <option value="">Select Customer</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.customer_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>Payment Date</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-calendar3"></i>
+                    <input type="date" name="payment_date" value="{{ today }}" required>
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>Amount</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-currency-rupee"></i>
+                    <input type="number" name="amount" step="0.01" min="0" required>
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>Mode</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-credit-card"></i>
+                    <select name="payment_mode">
+                        <option>Cash</option>
+                        <option>Bank Transfer</option>
+                        <option>UPI</option>
+                        <option>Cheque</option>
+                        <option>Adjustment</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>Reference No</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-hash"></i>
+                    <input type="text" name="reference_no">
+                </div>
+            </div>
+
+            <div class="customer-payment-field notes">
+                <label>Notes</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-journal-text"></i>
+                    <input type="text" name="notes">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save-customer-payment">
+                <i class="bi bi-save2"></i>
+                <span>Save Payment</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="customer-outstanding-filter-panel">
+        <form method="get" action="/customer-outstanding-report" class="customer-outstanding-filter-form">
+            <div class="customer-payment-field">
+                <label>From Date</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" name="from_date" value="{{ from_date }}">
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>To Date</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-calendar-check"></i>
+                    <input type="date" name="to_date" value="{{ to_date }}">
+                </div>
+            </div>
+
+            <div class="customer-payment-field wide">
+                <label>Customer</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-filter"></i>
+                    <select name="customer_id">
+                        <option value="0">All Customers</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer.id == customer_id %}selected{% endif %}>
+                            {{ customer.customer_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="customer-payment-field">
+                <label>Status</label>
+                <div class="customer-payment-input-shell">
+                    <i class="bi bi-activity"></i>
+                    <select name="status">
+                        <option value="all" {% if status == "all" %}selected{% endif %}>All Status</option>
+                        <option value="due" {% if status == "due" %}selected{% endif %}>Collection Due</option>
+                        <option value="clear" {% if status == "clear" %}selected{% endif %}>Settled</option>
+                        <option value="advance" {% if status == "advance" %}selected{% endif %}>Advance Received</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-customer-outstanding-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="customer-outstanding-report-panel">
+        <div class="customer-outstanding-panel-header">
+            <div>
+                <span class="customer-outstanding-panel-label">Customer Ledger</span>
+                <h2>Outstanding Balances</h2>
+            </div>
+            <span class="customer-outstanding-record-count">{{ report|length }} Records</span>
+        </div>
+
+        <div class="customer-outstanding-table-wrap">
+            <table class="customer-outstanding-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Customer</th>
+                        <th>Sales</th>
+                        <th>Sales Value</th>
+                        <th>Received</th>
+                        <th>Balance</th>
+                        <th>Last Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="customer-ledger-cell">
+                                <span class="customer-ledger-avatar">{{ row.customer_name[:1]|upper }}</span>
+                                <div>
+                                    <strong>{{ row.customer_name }}</strong>
+                                    <span>{{ row.company_name or row.mobile or "Customer" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="customer-outstanding-number">{{ row.sale_count }}</td>
+                        <td class="customer-outstanding-number">&#8377; {{ "{:,.2f}".format(row.sale_amount or 0) }}</td>
+                        <td class="customer-outstanding-number received">&#8377; {{ "{:,.2f}".format(row.received_amount or 0) }}</td>
+                        <td class="customer-outstanding-number balance">&#8377; {{ "{:,.2f}".format(row.balance_amount or 0) }}</td>
+                        <td>{{ row.last_payment_date or "-" }}</td>
+                        <td>
+                            <span class="customer-outstanding-status {{ row.status }}">{{ row.status_label }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="customer-outstanding-empty-state">
+                                <i class="bi bi-wallet"></i>
+                                <strong>No outstanding records found</strong>
+                                <span>Try changing the filters or add customer sales and payments.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="customer-outstanding-report-panel customer-payment-history-panel">
+        <div class="customer-outstanding-panel-header">
+            <div>
+                <span class="customer-outstanding-panel-label">Payment History</span>
+                <h2>Recent Customer Payments</h2>
+            </div>
+            <span class="customer-outstanding-record-count">{{ payments|length }} Entries</span>
+        </div>
+
+        <div class="customer-outstanding-table-wrap">
+            <table class="customer-outstanding-table customer-payment-history-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Mode</th>
+                        <th>Reference</th>
+                        <th>Notes</th>
+                        <th>Update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>
+                            <form id="customerPaymentUpdate{{ payment.id }}" method="post" action="/customer-payment/update"></form>
+                            <input form="customerPaymentUpdate{{ payment.id }}" type="hidden" name="payment_id" value="{{ payment.id }}">
+                            <input form="customerPaymentUpdate{{ payment.id }}" type="date" name="payment_date" value="{{ payment.payment_date }}" required>
+                        </td>
+                        <td>
+                            <select form="customerPaymentUpdate{{ payment.id }}" name="customer_id" required>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if customer.id == payment.customer_id %}selected{% endif %}>
+                                    {{ customer.customer_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input form="customerPaymentUpdate{{ payment.id }}" type="number" name="amount" step="0.01" min="0" value="{{ payment.amount }}" required>
+                        </td>
+                        <td>
+                            <select form="customerPaymentUpdate{{ payment.id }}" name="payment_mode">
+                                {% for mode in ["Cash", "Bank Transfer", "UPI", "Cheque", "Adjustment"] %}
+                                <option value="{{ mode }}" {% if mode == payment.payment_mode %}selected{% endif %}>{{ mode }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input form="customerPaymentUpdate{{ payment.id }}" type="text" name="reference_no" value="{{ payment.reference_no or '' }}">
+                        </td>
+                        <td>
+                            <input form="customerPaymentUpdate{{ payment.id }}" type="text" name="notes" value="{{ payment.notes or '' }}">
+                        </td>
+                        <td>
+                            <button form="customerPaymentUpdate{{ payment.id }}" type="submit" class="btn-update-customer-payment">
+                                <i class="bi bi-check2"></i>
+                                <span>Update</span>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="customer-outstanding-empty-state compact">
+                                <i class="bi bi-cash-stack"></i>
+                                <strong>No payments entered yet</strong>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}

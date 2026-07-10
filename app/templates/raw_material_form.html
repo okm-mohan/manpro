@@ -4,106 +4,170 @@
 Add Raw Material
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/raw_materials.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="raw-materials-page">
 
-    <h4 class="mb-4">
-        Add Raw Material
-    </h4>
+    <section class="materials-hero material-form-hero">
+
+        <div>
+            <span class="hero-kicker">Inventory Master</span>
+            <h1>Add Raw Material</h1>
+            <p>
+                Create a new material profile with purchase pricing, GST, opening stock and minimum stock level.
+            </p>
+        </div>
+
+        <a href="/raw-materials"
+           class="btn-ghost-material">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
+        </a>
+
+    </section>
+
+    <section class="materials-panel material-form-panel">
+
+        <div class="panel-header">
+
+            <div>
+                <span class="panel-label">Material Details</span>
+                <h2>New Material Entry</h2>
+            </div>
+
+            <span class="record-count">
+                Required fields
+            </span>
+
+        </div>
 
     <form method="post"
-          action="/raw-material/save">
+          action="/raw-material/save"
+          class="material-form">
 
-        <div class="row">
+        <div class="material-form-grid">
 
-            <div class="col-md-6 mb-3">
+            <div class="form-field wide-field">
 
                 <label>Material Name</label>
 
-                <input
-                    type="text"
-                    name="material_name"
-                    class="form-control"
-                    required>
+                <div class="input-shell">
+                    <i class="bi bi-box-seam"></i>
+                    <input
+                        type="text"
+                        name="material_name"
+                        class="form-control"
+                        required>
+                </div>
 
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="form-field">
 
                 <label>Unit</label>
 
-                <select
-                    name="unit"
-                    class="form-control">
+                <div class="input-shell">
+                    <i class="bi bi-rulers"></i>
+                    <select
+                        name="unit"
+                        class="form-control">
 
-                    <option>KG</option>
-                    <option>LTR</option>
-                    <option>PCS</option>
+                        <option>KG</option>
+                        <option>LTR</option>
+                        <option>PCS</option>
 
-                </select>
+                    </select>
+                </div>
 
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="form-field">
 
                 <label>Purchase Price</label>
 
-                <input
-                    type="number"
-                    step="0.01"
-                    name="purchase_price"
-                    class="form-control">
+                <div class="input-shell">
+                    <i class="bi bi-currency-rupee"></i>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="purchase_price"
+                        class="form-control">
+                </div>
 
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="form-field">
 
                 <label>Opening Stock</label>
 
-                <input
-                    type="number"
-                    step="0.01"
-                    name="stock_qty"
-                    class="form-control">
+                <div class="input-shell">
+                    <i class="bi bi-layers"></i>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="stock_qty"
+                        class="form-control">
+                </div>
 
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="form-field">
 
                 <label>Minimum Stock</label>
 
-                <input
-                    type="number"
-                    step="0.01"
-                    name="minimum_stock"
-                    class="form-control">
+                <div class="input-shell">
+                    <i class="bi bi-shield-check"></i>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="minimum_stock"
+                        class="form-control">
+                </div>
 
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="form-field">
 
                 <label>GST %</label>
 
-                <input
-                    type="number"
-                    step="0.01"
-                    name="gst_percent"
-                    class="form-control">
+                <div class="input-shell">
+                    <i class="bi bi-percent"></i>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="gst_percent"
+                        class="form-control">
+                </div>
 
             </div>
 
         </div>
 
-        <button
-            type="submit"
-            class="btn btn-success">
+        <div class="form-actions">
 
-            Save Material
+            <a href="/raw-materials"
+               class="btn-secondary-material">
+                Cancel
+            </a>
 
-        </button>
+            <button
+                type="submit"
+                class="btn-save-material">
+
+                <i class="bi bi-check2-circle"></i>
+                <span>Save Material</span>
+
+            </button>
+
+        </div>
 
     </form>
+
+    </section>
 
 </div>
 

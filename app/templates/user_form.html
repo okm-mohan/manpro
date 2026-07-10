@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+{% if user %}Edit User{% else %}Add User{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/users.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="users-page">
+
+    <section class="users-hero user-form-hero">
+        <div>
+            <span class="user-kicker">Access Control</span>
+            <h1>{% if user %}Edit User{% else %}Add User{% endif %}</h1>
+            <p>Set login credentials, role and active status for ERP access.</p>
+        </div>
+
+        <a href="/users" class="btn-user-ghost">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to Users</span>
+        </a>
+    </section>
+
+    <section class="users-panel user-form-panel">
+        <div class="user-panel-header">
+            <div>
+                <span class="user-panel-label">User Details</span>
+                <h2>{% if user %}{{ user.username }}{% else %}New User Entry{% endif %}</h2>
+            </div>
+            <span class="user-record-count">Role setup</span>
+        </div>
+
+        <form method="post"
+              action="{% if user %}/user/update{% else %}/user/save{% endif %}"
+              class="user-form">
+
+            {% if user %}
+            <input type="hidden" name="user_id" value="{{ user.id }}">
+            {% endif %}
+
+            <div class="user-form-grid">
+
+                <div class="user-form-field">
+                    <label>Full Name</label>
+                    <div class="user-input-shell">
+                        <i class="bi bi-person-badge"></i>
+                        <input type="text" name="full_name" value="{{ user.full_name if user else '' }}">
+                    </div>
+                </div>
+
+                <div class="user-form-field">
+                    <label>Username</label>
+                    <div class="user-input-shell">
+                        <i class="bi bi-person"></i>
+                        <input type="text" name="username" value="{{ user.username if user else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="user-form-field">
+                    <label>{% if user %}New Password{% else %}Password{% endif %}</label>
+                    <div class="user-input-shell">
+                        <i class="bi bi-key"></i>
+                        <input type="password"
+                               name="password"
+                               {% if not user %}required{% endif %}
+                               placeholder="{% if user %}Leave blank to keep old password{% else %}Enter password{% endif %}">
+                    </div>
+                </div>
+
+                <div class="user-form-field">
+                    <label>Role</label>
+                    <div class="user-input-shell">
+                        <i class="bi bi-shield-lock"></i>
+                        {% set current_role = user.role if user else "User" %}
+                        <select name="role">
+                            <option value="Admin" {% if current_role == "Admin" %}selected{% endif %}>Admin</option>
+                            <option value="User" {% if current_role == "User" %}selected{% endif %}>User</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="user-form-field">
+                    <label>Status</label>
+                    <div class="user-input-shell">
+                        <i class="bi bi-toggle-on"></i>
+                        {% set current_status = user.status if user else "Active" %}
+                        <select name="status">
+                            <option value="Active" {% if current_status == "Active" %}selected{% endif %}>Active</option>
+                            <option value="Inactive" {% if current_status == "Inactive" %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="user-form-actions">
+                <a href="/users" class="btn-user-secondary">Cancel</a>
+                <button type="submit" class="btn-save-user">
+                    <i class="bi bi-check2-circle"></i>
+                    <span>{% if user %}Update User{% else %}Save User{% endif %}</span>
+                </button>
+            </div>
+
+        </form>
+    </section>
+
+</div>
+
+{% endblock %}

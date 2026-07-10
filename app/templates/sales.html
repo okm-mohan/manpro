@@ -1,157 +1,305 @@
 {% extends "base.html" %}
 
+{% block page_title %}
+Sales
+{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/sales.css">
 {% endblock %}
 
 {% block content %}
 
-<div class="purchase-page">
+<div class="sales-page">
 
-    <!-- Header -->
-
-    <div class="purchase-header">
+    <section class="sales-hero">
 
         <div>
+            <span class="sales-kicker">Revenue Desk</span>
             <h1>Sales Management</h1>
-            <p>Manage Sales Invoices & Customer Orders</p>
+            <p>
+                Track customer invoices, daily sales, collections and invoice actions from one focused sales workspace.
+            </p>
         </div>
 
-        <a href="/sales/add" class="btn-add">
-            + Add Sales
+        <a href="/sales/add" class="btn-add-sales">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Sales</span>
         </a>
 
-    </div>
+    </section>
 
-    <!-- Statistics -->
+    <section class="sales-summary">
 
-    <div class="stats-grid">
+        <div class="sales-summary-tile">
+            <div class="sales-summary-icon icon-green">
+                <i class="bi bi-receipt"></i>
+            </div>
 
-        <div class="stat-card">
-            <h3>Total Sales</h3>
-            <h2>{{ sale_count or 0 }}</h2>
+            <div>
+                <span>Total Sales</span>
+                <strong>{{ sale_count or 0 }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Total Amount</h3>
-            <h2>₹ {{ sale_amount or 0 }}</h2>
+        <div class="sales-summary-tile">
+            <div class="sales-summary-icon icon-blue">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+
+            <div>
+                <span>Total Amount</span>
+                <strong>&#8377; {{ "%.2f"|format(sale_amount or 0) }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Customers</h3>
-            <h2>{{ customer_count or 0 }}</h2>
+        <div class="sales-summary-tile">
+            <div class="sales-summary-icon icon-pink">
+                <i class="bi bi-people"></i>
+            </div>
+
+            <div>
+                <span>Customers</span>
+                <strong>{{ customer_count or 0 }}</strong>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Today Sales</h3>
-            <h2>₹ {{ today_sales or 0 }}</h2>
+        <div class="sales-summary-tile">
+            <div class="sales-summary-icon icon-gold">
+                <i class="bi bi-calendar2-check"></i>
+            </div>
+
+            <div>
+                <span>Today Sales</span>
+                <strong>&#8377; {{ "%.2f"|format(today_sales or 0) }}</strong>
+            </div>
         </div>
 
-    </div>
+    </section>
 
-    <!-- Filter -->
+    <section class="sales-filter-panel">
 
-    <div class="filter-card">
+        <form method="get" action="/sales" class="sales-filter-form">
 
-        <form method="get" action="/sales">
-
-            <div class="filter-group">
-
-                <div>
-                    <label>From Date</label>
+            <div class="sales-filter-field">
+                <label>From Date</label>
+                <div class="sales-input-shell">
+                    <i class="bi bi-calendar3"></i>
                     <input type="date" name="from_date" value="{{ from_date }}">
                 </div>
+            </div>
 
-                <div>
-                    <label>To Date</label>
+            <div class="sales-filter-field">
+                <label>To Date</label>
+                <div class="sales-input-shell">
+                    <i class="bi bi-calendar3"></i>
                     <input type="date" name="to_date" value="{{ to_date }}">
                 </div>
+            </div>
 
-                <div>
-                    <button type="submit" class="btn-search">
-                        Search
+            <button type="submit" class="btn-sales-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+
+        </form>
+
+    </section>
+
+    <section class="sales-panel">
+
+        <div class="sales-panel-header">
+
+            <div>
+                <span class="sales-panel-label">Sales Register</span>
+                <h2>Sales Invoices</h2>
+            </div>
+
+            <span class="sales-record-count">
+                {{ sales|length }} Records
+            </span>
+
+        </div>
+
+        <div class="sales-table-wrap">
+
+            <table class="sales-table">
+
+                <thead>
+                    <tr>
+                        <th>Invoice No</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Grand Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for row in sales %}
+
+                    <tr>
+
+                        <td>
+                            <span class="invoice-no-pill">
+                                {{ row.invoice_number }}
+                            </span>
+                        </td>
+
+                        <td>{{ row.sale_date }}</td>
+
+                        <td>
+                            <div class="sales-customer-cell">
+                                <span class="sales-customer-avatar">
+                                    {{ row.customer_name[:1]|upper if row.customer_name else "C" }}
+                                </span>
+                                <strong>{{ row.customer_name or "Walk-in Customer" }}</strong>
+                            </div>
+                        </td>
+
+                        <td class="sales-amount-cell">
+                            &#8377; {{ "%.2f"|format(row.grand_total or 0) }}
+                        </td>
+
+                        <td>
+                            <div class="sales-action-group">
+
+                                <a href="/sales/invoice/{{ row.id }}"
+                                   target="_blank"
+                                   class="sales-table-action sales-view-action">
+                                    <i class="bi bi-eye"></i>
+                                    <span>View</span>
+                                </a>
+
+                                <a href="/sales/invoice/{{ row.id }}?print=1"
+                                   target="_blank"
+                                   class="sales-table-action sales-print-action">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Print</span>
+                                </a>
+
+                                <a href="/sales/edit/{{ row.id }}"
+                                   class="sales-table-action sales-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/sales/delete/{{ row.id }}"
+                                   class="sales-table-action sales-delete-action"
+                                   data-delete-sale
+                                   data-invoice-no="{{ row.invoice_number }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="5">
+                            <div class="sales-empty-state">
+                                <i class="bi bi-receipt-cutoff"></i>
+                                <strong>No sales found</strong>
+                                <span>Try changing the date range or add your first sales invoice.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade sales-delete-modal"
+     id="deleteSaleModal"
+     tabindex="-1"
+     aria-labelledby="deleteSaleModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="sales-delete-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="sales-delete-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deleteSaleModalLabel">
+                    Delete sales invoice?
+                </h3>
+
+                <p>
+                    <strong id="deleteSaleInvoice">This invoice</strong>
+                    will be removed from the sales register. This action cannot be undone.
+                </p>
+
+                <div class="sales-delete-actions">
+                    <button type="button"
+                            class="btn-sales-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
                     </button>
+
+                    <a href="#"
+                       class="btn-sales-modal-delete"
+                       id="confirmDeleteSale">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Sale</span>
+                    </a>
                 </div>
 
             </div>
 
-        </form>
-
-    </div>
-
-    <!-- Sales Table -->
-
-    <div class="table-card">
-
-        <table class="purchase-table">
-
-            <thead>
-
-                <tr>
-
-                    <th>Invoice No</th>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Grand Total</th>
-                    <th width="340">Actions</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                {% for row in sales %}
-
-                <tr>
-
-                    <td>
-                        {{ row.invoice_number }}
-                    </td>
-
-                    <td>
-                        {{ row.sale_date }}
-                    </td>
-
-                    <td>
-                        {{ row.customer_name }}
-                    </td>
-
-                    <td>
-                        ₹ {{ row.grand_total }}
-                    </td>
-
-                    <td class="action-buttons">
-
-                        <a href="/sales/invoice/{{ row.id }}" target="_blank" class="btn-view">
-                            View
-                        </a>
-
-                        <a href="/sales/invoice/{{ row.id }}?print=1" target="_blank" class="btn-print">
-                            Print
-                        </a>
-
-                        <a href="/sales/edit/{{ row.id }}" class="btn-edit">
-                            ✏ Edit
-                        </a>
-
-                        <a href="/sales/delete/{{ row.id }}" class="btn-delete"
-                            onclick="return confirm('Delete this Sale?')">
-                            🗑 Delete
-                        </a>
-
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
+        </div>
 
     </div>
 
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteSaleModal");
+    const confirmButton = document.getElementById("confirmDeleteSale");
+    const invoiceNo = document.getElementById("deleteSaleInvoice");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-sale]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            invoiceNo.textContent = link.dataset.invoiceNo || "This invoice";
+            deleteModal.show();
+        });
+    });
+});
+</script>
 
 {% endblock %}

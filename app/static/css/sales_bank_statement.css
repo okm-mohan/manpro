@@ -1,0 +1,361 @@
+.sales-bank-page{
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+}
+
+.sales-bank-hero{
+    min-height:168px;
+    border-radius:8px;
+    padding:28px;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    background:
+        linear-gradient(135deg,rgba(12,74,110,.96),rgba(4,120,87,.88)),
+        radial-gradient(circle at 88% 18%,rgba(147,197,253,.34),transparent 32%);
+    box-shadow:0 18px 42px rgba(12,74,110,.16);
+}
+
+.sales-bank-kicker{
+    color:#bfdbfe;
+    font-size:12px;
+    font-weight:850;
+    letter-spacing:1.6px;
+    text-transform:uppercase;
+}
+
+.sales-bank-hero h1{
+    font-size:34px;
+    font-weight:850;
+    margin:8px 0;
+}
+
+.sales-bank-hero p{
+    max-width:760px;
+    margin:0;
+    color:#dcfce7;
+    font-size:15px;
+    line-height:1.65;
+}
+
+.btn-sales-bank-print,
+.btn-sales-bank-search{
+    min-height:46px;
+    border:0;
+    border-radius:8px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-weight:850;
+    transition:.2s ease;
+}
+
+.btn-sales-bank-print{
+    padding:0 18px;
+    color:#082f49;
+    background:#bfdbfe;
+}
+
+.btn-sales-bank-search{
+    padding:0 20px;
+    color:#fff;
+    background:#047857;
+}
+
+.btn-sales-bank-print:hover,
+.btn-sales-bank-search:hover{
+    transform:translateY(-1px);
+    filter:brightness(1.04);
+}
+
+.sales-bank-filter,
+.sales-bank-statement-sheet{
+    border:1px solid #bfdbfe;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 14px 34px rgba(12,74,110,.07);
+}
+
+.sales-bank-filter{
+    padding:22px 24px;
+}
+
+.sales-bank-filter-form{
+    display:flex;
+    align-items:flex-end;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.sales-bank-field{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    min-width:220px;
+}
+
+.sales-bank-field label{
+    color:#0f172a;
+    font-size:13px;
+    font-weight:850;
+}
+
+.sales-bank-input{
+    min-height:46px;
+    border:1px solid #bfdbfe;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:0 13px;
+    background:#fff;
+}
+
+.sales-bank-input:focus-within{
+    border-color:#047857;
+    box-shadow:0 0 0 4px rgba(4,120,87,.12);
+}
+
+.sales-bank-input i{
+    color:#047857;
+}
+
+.sales-bank-input select{
+    width:100%;
+    min-height:44px;
+    border:0;
+    outline:none;
+    background:transparent;
+    color:#0f172a;
+    font-weight:750;
+}
+
+.sales-bank-statement-sheet{
+    padding:22px;
+}
+
+.sales-bank-statement-header{
+    text-align:center;
+    padding-bottom:14px;
+    border-bottom:2px solid #0f172a;
+    margin-bottom:14px;
+}
+
+.sales-bank-statement-header h2{
+    color:#0f172a;
+    font-size:25px;
+    font-weight:900;
+    margin:0 0 6px;
+    text-transform:uppercase;
+}
+
+.sales-bank-statement-header p{
+    color:#475569;
+    font-size:13px;
+    line-height:1.45;
+    margin:0 auto 10px;
+    max-width:900px;
+}
+
+.sales-statement-meta{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    color:#0f172a;
+    font-size:14px;
+}
+
+.sales-statement-meta span{
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+
+.sales-statement-meta strong{
+    border:1px solid #94a3b8;
+    border-radius:999px;
+    padding:5px 12px;
+    background:#f8fafc;
+}
+
+.sales-bank-table-wrap{
+    overflow-x:auto;
+}
+
+.sales-bank-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.sales-bank-table th,
+.sales-bank-table td{
+    border:1px solid #94a3b8;
+    padding:8px 9px;
+    color:#0f172a;
+    font-size:12px;
+    vertical-align:middle;
+}
+
+.sales-bank-table th{
+    background:#dcfce7;
+    font-weight:900;
+    text-transform:uppercase;
+    text-align:center;
+    white-space:nowrap;
+}
+
+.sales-bank-table tbody tr:nth-child(even){
+    background:#f8fafc;
+}
+
+.sales-statement-number{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+}
+
+.sales-statement-grand{
+    font-weight:900;
+}
+
+.sales-bank-table tfoot td{
+    background:#dbeafe;
+    font-weight:900;
+}
+
+.sales-statement-empty{
+    min-height:150px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    color:#64748b;
+}
+
+.sales-statement-empty i{
+    color:#047857;
+    font-size:34px;
+}
+
+.sales-statement-empty strong{
+    color:#0f172a;
+}
+
+.sales-bank-statement-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-top:12px;
+    color:#475569;
+    font-size:11px;
+}
+
+.sales-page-number::after{
+    content:"Page " counter(page) " of " counter(pages);
+}
+
+@media(max-width:760px){
+    .sales-bank-hero{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .sales-bank-filter-form,
+    .sales-bank-field,
+    .btn-sales-bank-search,
+    .btn-sales-bank-print{
+        width:100%;
+    }
+}
+
+@page{
+    size:A4 landscape;
+    margin:10mm;
+}
+
+@media print{
+    body{
+        background:#fff !important;
+    }
+
+    .no-print,
+    .sidebar,
+    .topbar{
+        display:none !important;
+    }
+
+    .main-wrapper{
+        margin-left:0 !important;
+    }
+
+    .content-area{
+        padding:0 !important;
+        background:#fff !important;
+    }
+
+    .sales-bank-page{
+        display:block;
+    }
+
+    .sales-bank-statement-sheet{
+        border:0;
+        border-radius:0;
+        box-shadow:none;
+        padding:0;
+    }
+
+    .sales-bank-statement-header{
+        break-after:avoid;
+        page-break-after:avoid;
+    }
+
+    .sales-bank-table{
+        page-break-inside:auto;
+    }
+
+    .sales-bank-table thead{
+        display:table-header-group;
+    }
+
+    .sales-bank-table tfoot{
+        display:table-row-group;
+    }
+
+    .sales-bank-table tr{
+        page-break-inside:avoid;
+        break-inside:avoid;
+    }
+
+    .sales-bank-table th,
+    .sales-bank-table td{
+        padding:5px 6px;
+        font-size:10px;
+        border-color:#111827;
+    }
+
+    .sales-bank-statement-header h2{
+        font-size:19px;
+    }
+
+    .sales-bank-statement-header p,
+    .sales-statement-meta{
+        font-size:10px;
+    }
+
+    .sales-bank-statement-footer{
+        position:fixed;
+        left:0;
+        right:0;
+        bottom:0;
+        padding-top:4px;
+        border-top:1px solid #94a3b8;
+        background:#fff;
+    }
+}

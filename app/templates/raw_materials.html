@@ -4,74 +4,286 @@
 Raw Materials
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/raw_materials.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+{% set ns = namespace(total_stock=0, low_stock=0) %}
+{% for item in materials %}
+    {% set ns.total_stock = ns.total_stock + (item.stock_qty or 0) %}
+    {% if item.minimum_stock is defined and item.stock_qty is not none and item.minimum_stock is not none and item.stock_qty <= item.minimum_stock %}
+        {% set ns.low_stock = ns.low_stock + 1 %}
+    {% endif %}
+{% endfor %}
 
-    <div class="d-flex justify-content-between mb-3">
+<div class="raw-materials-page">
 
-        <h4>Raw Materials</h4>
+    <section class="materials-hero">
+
+        <div>
+            <span class="hero-kicker">Inventory Master</span>
+            <h1>Raw Materials</h1>
+            <p>
+                Track purchase price, GST, stock quantity and reorder levels from one clean material register.
+            </p>
+        </div>
 
         <a href="/raw-material/add"
-           class="btn btn-primary">
-            Add Material
+           class="btn-add-material">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Material</span>
         </a>
+
+    </section>
+
+    <section class="materials-summary">
+
+        <div class="summary-tile">
+            <div class="summary-icon icon-blue">
+                <i class="bi bi-box-seam"></i>
+            </div>
+
+            <div>
+                <span>Total Materials</span>
+                <strong>{{ materials|length }}</strong>
+            </div>
+        </div>
+
+        <div class="summary-tile">
+            <div class="summary-icon icon-green">
+                <i class="bi bi-layers"></i>
+            </div>
+
+            <div>
+                <span>Total Stock</span>
+                <strong>{{ "%.2f"|format(ns.total_stock) }}</strong>
+            </div>
+        </div>
+
+        <div class="summary-tile">
+            <div class="summary-icon icon-amber">
+                <i class="bi bi-shield-check"></i>
+            </div>
+
+            <div>
+                <span>Stock Alerts</span>
+                <strong>{{ ns.low_stock }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="materials-panel">
+
+        <div class="panel-header">
+
+            <div>
+                <span class="panel-label">Material Register</span>
+                <h2>Available Raw Materials</h2>
+            </div>
+
+            <span class="record-count">
+                {{ materials|length }} Records
+            </span>
+
+        </div>
+
+        <div class="materials-table-wrap">
+
+            <table class="materials-table">
+
+                <thead>
+
+                    <tr>
+                        <th>ID</th>
+                        <th>Material</th>
+                        <th>Unit</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>GST</th>
+                        <th>Action</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for item in materials %}
+
+                    <tr>
+
+                        <td>
+                            <span class="id-pill">
+                                #{{ item.id }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="material-name-cell">
+                                <span class="material-avatar">
+                                    {{ item.material_name[:1]|upper }}
+                                </span>
+
+                                <div>
+                                    <strong>{{ item.material_name }}</strong>
+                                    <small>Raw material</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="unit-badge">
+                                {{ item.unit }}
+                            </span>
+                        </td>
+
+                        <td class="numeric-cell">
+                            {{ "%.2f"|format(item.purchase_price or 0) }}
+                        </td>
+
+                        <td class="numeric-cell">
+                            {% set is_low = item.minimum_stock is defined and item.stock_qty is not none and item.minimum_stock is not none and item.stock_qty <= item.minimum_stock %}
+
+                            <span class="stock-badge {% if is_low %}stock-low{% else %}stock-ok{% endif %}">
+                                {{ "%.2f"|format(item.stock_qty or 0) }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="gst-badge">
+                                {{ item.gst_percent }}%
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="action-group">
+
+                                <a href="/raw-material/edit/{{ item.id }}"
+                                   class="table-action edit-action"
+                                   title="Edit material">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/raw-material/delete/{{ item.id }}"
+                                   class="table-action delete-action"
+                                   data-delete-material
+                                   data-material-name="{{ item.material_name }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="bi bi-inboxes"></i>
+                                <strong>No raw materials added yet</strong>
+                                <span>Create your first material to start tracking inventory.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade material-delete-modal"
+     id="deleteMaterialModal"
+     tabindex="-1"
+     aria-labelledby="deleteMaterialModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="delete-modal-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="delete-modal-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deleteMaterialModalLabel">
+                    Delete raw material?
+                </h3>
+
+                <p>
+                    <strong id="deleteMaterialName">This material</strong>
+                    will be removed from the material register. This action cannot be undone.
+                </p>
+
+                <div class="delete-modal-actions">
+
+                    <button type="button"
+                            class="btn-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <a href="#"
+                       class="btn-modal-delete"
+                       id="confirmDeleteMaterial">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Material</span>
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
-    <table class="table table-hover">
-
-        <thead>
-
-            <tr>
-                <th>ID</th>
-                <th>Material</th>
-                <th>Unit</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>GST</th>
-                <th>Action</th>
-            </tr>
-
-        </thead>
-
-        <tbody>
-
-            {% for item in materials %}
-
-            <tr>
-
-                <td>{{ item.id }}</td>
-                <td>{{ item.material_name }}</td>
-                <td>{{ item.unit }}</td>
-                <td>{{ item.purchase_price }}</td>
-                <td>{{ item.stock_qty }}</td>
-                <td>{{ item.gst_percent }}</td>
-
-                <td>
-
-                <a href="/raw-material/edit/{{ item.id }}"
-   class="btn btn-warning btn-sm">
-   Edit
-</a>
-
-                  <a
-    href="/raw-material/delete/{{ item.id }}"
-    class="btn btn-danger btn-sm"
-    onclick="return confirm('Delete this material?')">
-    Delete
-</a>
-
-                </td>
-
-            </tr>
-
-            {% endfor %}
-
-        </tbody>
-
-    </table>
-
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteMaterialModal");
+    const confirmButton = document.getElementById("confirmDeleteMaterial");
+    const materialName = document.getElementById("deleteMaterialName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-material]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            materialName.textContent = link.dataset.materialName || "This material";
+            deleteModal.show();
+        });
+    });
+});
+</script>
 
 {% endblock %}

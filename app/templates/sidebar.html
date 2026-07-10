@@ -26,15 +26,69 @@
         </li>
 
         <li class="menu-heading">
+            Transactions
+        </li>
+
+        <li>
+            <a href="/purchase">
+                <i class="bi bi-cart-plus"></i>
+                <span>Purchase</span>
+            </a>
+        </li>
+
+        <!-- <li>
+            <a href="/production">
+                <i class="bi bi-gear"></i>
+                <span>Production</span>
+            </a>
+        </li> -->
+
+        <li>
+            <a href="/sales">
+                <i class="bi bi-receipt"></i>
+                <span>Sales</span>
+            </a>
+        </li>
+
+        <li>
+            <a href="/employee-attendance">
+                <i class="bi bi-calendar-check"></i>
+                <span>Attendance</span>
+            </a>
+        </li>
+        <li>
+            <a href="/accounts">
+                <i class="bi bi-cash-coin"></i>
+                <span>Accounts</span>
+            </a>
+        </li>
+<!-- 
+        <li>
+            <a href="/expenses">
+                <i class="bi bi-cash"></i>
+                <span>Expenses</span>
+            </a>
+        </li> -->
+
+        <li class="menu-heading">
             Masters
         </li>
 
+        {% if request.session.get("role", "Admin") == "Admin" %}
         <li>
             <a href="/company">
                 <i class="bi bi-building"></i>
                 <span>Company</span>
             </a>
         </li>
+
+        <li>
+            <a href="/users">
+                <i class="bi bi-shield-lock"></i>
+                <span>Users & Roles</span>
+            </a>
+        </li>
+        {% endif %}
 
         <li>
             <a href="/raw-materials">
@@ -64,38 +118,12 @@
             </a>
         </li>
 
-
-        <li class="menu-heading">
-            Transactions
-        </li>
-
         <li>
-            <a href="/purchase">
-                <i class="bi bi-cart-plus"></i>
-                <span>Purchase</span>
+            <a href="/employees">
+                <i class="bi bi-person-workspace"></i>
+                <span>Employees</span>
             </a>
         </li>
-
-        <!-- <li>
-            <a href="/production">
-                <i class="bi bi-gear"></i>
-                <span>Production</span>
-            </a>
-        </li> -->
-
-        <li>
-            <a href="/sales">
-                <i class="bi bi-receipt"></i>
-                <span>Sales</span>
-            </a>
-        </li>
-<!-- 
-        <li>
-            <a href="/expenses">
-                <i class="bi bi-cash"></i>
-                <span>Expenses</span>
-            </a>
-        </li> -->
 
         <!-- =======================================
         REPORTS
@@ -136,6 +164,73 @@
             <a href="/monthly-sales-report">
                 <i class="bi bi-calendar2-week"></i>
                 Monthly Sales
+            </a>
+        </li>
+
+        <li>
+            <a href="/stock-valuation-report">
+                <i class="bi bi-boxes"></i>
+                Stock Valuation
+            </a>
+        </li>
+
+        <li>
+            <a href="/supplier-outstanding-report">
+                <i class="bi bi-wallet2"></i>
+                Supplier Outstanding
+            </a>
+        </li>
+
+        <li>
+            <a href="/customer-outstanding-report">
+                <i class="bi bi-person-check"></i>
+                Customer Outstanding
+            </a>
+        </li>
+
+        <li>
+            <a href="/purchase-bank-statement">
+                <i class="bi bi-bank"></i>
+                Purchase Bank Statement
+            </a>
+        </li>
+
+        <li>
+            <a href="/sales-bank-statement">
+                <i class="bi bi-bank2"></i>
+                Sales Bank Statement
+            </a>
+        </li>
+
+        <li>
+            <a href="/salary-receipt">
+                <i class="bi bi-receipt-cutoff"></i>
+                Salary Receipt
+            </a>
+        </li>
+
+        <li>
+            <a href="/accounts-ledger">
+                <i class="bi bi-journal-text"></i>
+                Accounts Ledger
+            </a>
+        </li>
+
+        <li class="menu-heading">
+            AI Tools
+        </li>
+
+        <li>
+            <a href="/ai-expense-analyzer">
+                <i class="bi bi-stars"></i>
+                AI Expense Analyzer
+            </a>
+        </li>
+
+        <li>
+            <a href="/ai-chatbot">
+                <i class="bi bi-robot"></i>
+                AI Chatbot
             </a>
         </li>
 

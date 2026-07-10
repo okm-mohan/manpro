@@ -1,4 +1,4 @@
-// =========================================
+﻿// =========================================
 // PURCHASE ADD
 // =========================================
 
@@ -186,11 +186,11 @@ function calculateTotals(){
         });
 
     document.getElementById("subTotal").innerHTML =
-        "₹ " + subTotal.toFixed(2);
+        "\u20B9 " + subTotal.toFixed(2);
 
     document.getElementById("gstTotal").innerHTML =
-        "₹ " + gstTotal.toFixed(2);
+        "\u20B9 " + gstTotal.toFixed(2);
 
     document.getElementById("grandTotal").innerHTML =
-        "₹ " + grandTotal.toFixed(2);
+        "\u20B9 " + grandTotal.toFixed(2);
 }

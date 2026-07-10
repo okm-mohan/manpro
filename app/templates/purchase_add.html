@@ -8,46 +8,63 @@
 
 <div class="purchase-add-page">
 
-    <div class="page-header">
+    <section class="purchase-entry-hero">
         <div>
+            <span class="purchase-entry-kicker">Procurement Desk</span>
             <h1>Purchase Entry</h1>
-            <p>Create New Purchase Invoice</p>
+            <p>Create a supplier purchase invoice with item-wise GST and stock impact.</p>
         </div>
 
         <a href="/purchase" class="btn-back">
-            Back
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
         </a>
-    </div>
+    </section>
 
-    <form method="post" action="/purchase/save">
+    <form method="post" action="/purchase/save" class="purchase-entry-form">
 
-        <div class="glass-card">
+        <section class="purchase-entry-panel">
+
+            <div class="purchase-panel-header">
+                <div>
+                    <span class="purchase-panel-label">Invoice Header</span>
+                    <h2>Supplier Details</h2>
+                </div>
+            </div>
 
             <div class="form-grid">
 
                 <div>
                     <label>Purchase No</label>
+                    <div class="purchase-form-shell">
+                        <i class="bi bi-hash"></i>
                     <input
                         type="text"
                         name="purchase_no"
                         value="{{ purchase_no }}"
                         readonly
                     >
+                    </div>
                 </div>
 
                 <div>
                     <label>Purchase Date</label>
+                    <div class="purchase-form-shell">
+                        <i class="bi bi-calendar3"></i>
                     <input
                         type="date"
                         name="purchase_date"
                         value="{{ today }}"
                         required
                     >
+                    </div>
                 </div>
 
                 <div>
                     <label>Supplier</label>
 
+                    <div class="purchase-form-shell">
+                        <i class="bi bi-truck"></i>
                     <select
                         name="supplier_id"
                         required
@@ -63,36 +80,46 @@
                         {% endfor %}
 
                     </select>
+                    </div>
 
                 </div>
 
                 <div>
                     <label>Invoice No</label>
+                    <div class="purchase-form-shell">
+                        <i class="bi bi-receipt"></i>
                     <input
                         type="text"
                         name="invoice_no"
                     >
+                    </div>
                 </div>
 
                 <div>
                     <label>Invoice Date</label>
+                    <div class="purchase-form-shell">
+                        <i class="bi bi-calendar2-check"></i>
                     <input
                         type="date"
                         name="invoice_date"
                     >
+                    </div>
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
         <!-- Item Grid -->
 
-        <div class="glass-card">
+        <section class="purchase-entry-panel">
 
             <div class="item-header">
 
-                <h3>Purchase Items</h3>
+                <div>
+                    <span class="purchase-panel-label">Line Items</span>
+                    <h3>Purchase Items</h3>
+                </div>
 
                 <button
                     type="button"
@@ -126,11 +153,11 @@
 
             </table>
 
-        </div>
+        </section>
 
         <!-- Totals -->
 
-        <div class="glass-card totals-card">
+        <section class="purchase-entry-panel totals-card">
 
             <div class="total-row">
                 <span>Sub Total</span>
@@ -154,7 +181,7 @@
                 Save Purchase
             </button>
 
-        </div>
+        </section>
 
     </form>
 

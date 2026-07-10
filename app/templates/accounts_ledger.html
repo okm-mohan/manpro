@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Accounts Ledger
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/accounts.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="accounts-page">
+
+    <section class="accounts-hero no-print">
+        <div>
+            <span class="accounts-kicker">Ledger Report</span>
+            <h1>Accounts Ledger</h1>
+            <p>Review income and expense ledger movement with date, account and type filters.</p>
+        </div>
+
+        <button type="button" class="btn-account-hero" onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Print Ledger</span>
+        </button>
+    </section>
+
+    <section class="accounts-filter-panel no-print">
+        <form method="get" action="/accounts-ledger" class="accounts-filter-form">
+            <div class="account-form-field">
+                <label>From Date</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" name="from_date" value="{{ from_date }}">
+                </div>
+            </div>
+
+            <div class="account-form-field">
+                <label>To Date</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-calendar-check"></i>
+                    <input type="date" name="to_date" value="{{ to_date }}">
+                </div>
+            </div>
+
+            <div class="account-form-field">
+                <label>Type</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-filter"></i>
+                    <select name="account_type">
+                        <option value="all" {% if account_type == "all" %}selected{% endif %}>All</option>
+                        <option value="Income" {% if account_type == "Income" %}selected{% endif %}>Income</option>
+                        <option value="Expense" {% if account_type == "Expense" %}selected{% endif %}>Expense</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="account-form-field wide-field">
+                <label>Account</label>
+                <div class="account-input-shell">
+                    <i class="bi bi-journal"></i>
+                    <select name="account_id">
+                        <option value="0">All Accounts</option>
+                        {% for head in heads %}
+                        <option value="{{ head.id }}" {% if head.id == account_id %}selected{% endif %}>
+                            {{ head.account_type }} - {{ head.account_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-account-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="ledger-sheet">
+        <header class="ledger-header">
+            <h2>{{ company.company_name if company else "Company Name" }}</h2>
+            <p>
+                {% if company %}
+                    {{ company.address or "" }}
+                    {% if company.city %}, {{ company.city }}{% endif %}
+                    {% if company.state %}, {{ company.state }}{% endif %}
+                    {% if company.pincode %} - {{ company.pincode }}{% endif %}
+                {% else %}
+                    Company address not configured
+                {% endif %}
+            </p>
+            <div class="ledger-meta">
+                <span>Accounts Ledger</span>
+                <strong>{{ from_date }} to {{ to_date }}</strong>
+            </div>
+        </header>
+
+        <div class="ledger-summary">
+            <div>
+                <span>Income</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_income or 0) }}</strong>
+            </div>
+            <div>
+                <span>Expense</span>
+                <strong>&#8377; {{ "{:,.2f}".format(total_expense or 0) }}</strong>
+            </div>
+            <div>
+                <span>Net</span>
+                <strong>&#8377; {{ "{:,.2f}".format(net_total or 0) }}</strong>
+            </div>
+        </div>
+
+        <div class="accounts-table-wrap">
+            <table class="ledger-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Date</th>
+                        <th>Account</th>
+                        <th>Mode</th>
+                        <th>Reference</th>
+                        <th>Narration</th>
+                        <th>Income</th>
+                        <th>Expense</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ledger %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ row.transaction_date }}</td>
+                        <td>
+                            <strong>{{ row.account_name }}</strong>
+                            <span>{{ row.account_type }}</span>
+                        </td>
+                        <td>{{ row.payment_mode or "-" }}</td>
+                        <td>{{ row.reference_no or "-" }}</td>
+                        <td>{{ row.narration or "-" }}</td>
+                        <td class="ledger-number income">&#8377; {{ "%.2f"|format(row.income_amount or 0) }}</td>
+                        <td class="ledger-number expense">&#8377; {{ "%.2f"|format(row.expense_amount or 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="account-empty-state">
+                                <i class="bi bi-journal-x"></i>
+                                <strong>No ledger records found</strong>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6">Grand Total</td>
+                        <td class="ledger-number income">&#8377; {{ "{:,.2f}".format(total_income or 0) }}</td>
+                        <td class="ledger-number expense">&#8377; {{ "{:,.2f}".format(total_expense or 0) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}

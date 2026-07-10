@@ -6,91 +6,90 @@
 
 {% block content %}
 
-<div class="purchase-add-page">
+<div class="sales-entry-page">
 
-    <div class="page-header">
+    <section class="sales-entry-hero">
 
         <div>
+            <span class="sales-entry-kicker">Revenue Desk</span>
             <h1>Sales Entry</h1>
-            <p>Create New Sales Invoice</p>
+            <p>Create a customer sales invoice with product-wise GST and stock reduction.</p>
         </div>
 
         <a href="/sales" class="btn-back">
-            Back
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to List</span>
         </a>
 
-    </div>
+    </section>
 
-    <form method="post" action="/sales/save">
+    <form method="post" action="/sales/save" class="sales-entry-form">
 
-        <!-- Header -->
+        <section class="sales-entry-panel">
 
-        <div class="glass-card">
+            <div class="sales-entry-panel-header">
+                <div>
+                    <span class="sales-entry-panel-label">Invoice Header</span>
+                    <h2>Customer Details</h2>
+                </div>
+            </div>
 
             <div class="form-grid">
 
                 <div>
                     <label>Invoice Number</label>
-                    <input
-                        type="text"
-                        name="invoice_number"
-                        value="{{ invoice_number }}"
-                        readonly
-                    >
+                    <div class="sales-form-shell">
+                        <i class="bi bi-hash"></i>
+                        <input
+                            type="text"
+                            name="invoice_number"
+                            value="{{ invoice_number }}"
+                            readonly>
+                    </div>
                 </div>
 
                 <div>
                     <label>Sales Date</label>
-                    <input
-                        type="date"
-                        name="sale_date"
-                        value="{{ today }}"
-                        required
-                    >
+                    <div class="sales-form-shell">
+                        <i class="bi bi-calendar3"></i>
+                        <input
+                            type="date"
+                            name="sale_date"
+                            value="{{ today }}"
+                            required>
+                    </div>
                 </div>
 
                 <div>
-
                     <label>Customer</label>
-
-                    <select
-                        name="customer_id"
-                        required
-                    >
-
-                        <option value="">
-                            Select Customer
-                        </option>
-
-                        {% for c in customers %}
-
-                        <option value="{{ c.id }}">
-                            {{ c.customer_name }}
-                        </option>
-
-                        {% endfor %}
-
-                    </select>
-
+                    <div class="sales-form-shell">
+                        <i class="bi bi-person-badge"></i>
+                        <select name="customer_id" required>
+                            <option value="">Select Customer</option>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}">{{ c.customer_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
-        <!-- Items -->
-
-        <div class="glass-card">
+        <section class="sales-entry-panel">
 
             <div class="item-header">
 
-                <h3>Sales Items</h3>
+                <div>
+                    <span class="sales-entry-panel-label">Line Items</span>
+                    <h3>Sales Items</h3>
+                </div>
 
                 <button
                     type="button"
                     class="btn-add-row"
-                    onclick="addRow()"
-                >
+                    onclick="addRow()">
                     + Add Row
                 </button>
 
@@ -99,9 +98,7 @@
             <table id="salesTable">
 
                 <thead>
-
                     <tr>
-
                         <th>Product</th>
                         <th>Qty</th>
                         <th>Rate</th>
@@ -109,46 +106,40 @@
                         <th>GST Amt</th>
                         <th>Total</th>
                         <th></th>
-
                     </tr>
-
                 </thead>
 
                 <tbody id="salesBody">
-
                 </tbody>
 
             </table>
 
-        </div>
+        </section>
 
-        <!-- Totals -->
-
-        <div class="glass-card totals-card">
+        <section class="sales-entry-panel totals-card">
 
             <div class="total-row">
                 <span>Sub Total</span>
-                <span id="subTotal">₹ 0.00</span>
+                <span id="subTotal">&#8377; 0.00</span>
             </div>
 
             <div class="total-row">
                 <span>GST Total</span>
-                <span id="gstTotal">₹ 0.00</span>
+                <span id="gstTotal">&#8377; 0.00</span>
             </div>
 
             <div class="total-row grand">
                 <span>Grand Total</span>
-                <span id="grandTotal">₹ 0.00</span>
+                <span id="grandTotal">&#8377; 0.00</span>
             </div>
 
             <button
                 type="submit"
-                class="btn-save"
-            >
+                class="btn-save">
                 Save Sales
             </button>
 
-        </div>
+        </section>
 
     </form>
 
@@ -159,20 +150,17 @@
 {% block extra_js %}
 
 <script>
-
 let productsOptions = `
 {% for p in products %}
 <option
     value="{{ p.id }}"
     data-rate="{{ p.sale_price }}"
     data-gst="{{ p.gst_percent }}"
-    data-stock="{{ p.stock_qty }}"
->
+    data-stock="{{ p.stock_qty }}">
 {{ p.product_name }}
 </option>
 {% endfor %}
 `;
-
 </script>
 
 <script src="/static/js/sales_add.js"></script>

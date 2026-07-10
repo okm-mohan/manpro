@@ -4,71 +4,270 @@
 Suppliers
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/suppliers.css">
+{% endblock %}
+
 {% block content %}
 
-<div class="section-card">
+<div class="suppliers-page">
 
-    <div class="d-flex justify-content-between mb-3">
+    <section class="suppliers-hero">
 
-        <h4>Suppliers</h4>
+        <div>
+            <span class="supplier-kicker">Vendor Master</span>
+            <h1>Suppliers</h1>
+            <p>
+                Manage vendor contacts, company details, GST numbers and supplier relationships in one register.
+            </p>
+        </div>
 
         <a href="/supplier/add"
-           class="btn btn-primary">
-            Add Supplier
+           class="btn-add-supplier">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Supplier</span>
         </a>
+
+    </section>
+
+    <section class="suppliers-summary">
+
+        <div class="supplier-summary-tile">
+            <div class="supplier-summary-icon icon-cyan">
+                <i class="bi bi-truck"></i>
+            </div>
+
+            <div>
+                <span>Total Suppliers</span>
+                <strong>{{ suppliers|length }}</strong>
+            </div>
+        </div>
+
+        <div class="supplier-summary-tile">
+            <div class="supplier-summary-icon icon-indigo">
+                <i class="bi bi-buildings"></i>
+            </div>
+
+            <div>
+                <span>Companies</span>
+                <strong>{{ suppliers|length }}</strong>
+            </div>
+        </div>
+
+        <div class="supplier-summary-tile">
+            <div class="supplier-summary-icon icon-lime">
+                <i class="bi bi-receipt-cutoff"></i>
+            </div>
+
+            <div>
+                <span>GST Records</span>
+                <strong>{{ suppliers|selectattr("gst_number")|list|length }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="suppliers-panel">
+
+        <div class="supplier-panel-header">
+
+            <div>
+                <span class="supplier-panel-label">Supplier Register</span>
+                <h2>Active Suppliers</h2>
+            </div>
+
+            <span class="supplier-record-count">
+                {{ suppliers|length }} Records
+            </span>
+
+        </div>
+
+        <div class="suppliers-table-wrap">
+
+            <table class="suppliers-table">
+
+                <thead>
+
+                    <tr>
+                        <th>ID</th>
+                        <th>Supplier</th>
+                        <th>Company</th>
+                        <th>Mobile</th>
+                        <th>GST</th>
+                        <th>Action</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                {% for item in suppliers %}
+
+                    <tr>
+
+                        <td>
+                            <span class="supplier-id-pill">
+                                #{{ item.id }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="supplier-name-cell">
+                                <span class="supplier-avatar">
+                                    {{ item.supplier_name[:1]|upper }}
+                                </span>
+
+                                <div>
+                                    <strong>{{ item.supplier_name }}</strong>
+                                    <small>{{ item.email or "Supplier contact" }}</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="company-badge">
+                                {{ item.company_name or "-" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="mobile-badge">
+                                {{ item.mobile or item.phone or "-" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="supplier-gst-badge">
+                                {{ item.gst_number or "Not added" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="supplier-action-group">
+
+                                <a href="/supplier/edit/{{ item.id }}"
+                                   class="supplier-table-action supplier-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+
+                                <a href="/supplier/delete/{{ item.id }}"
+                                   class="supplier-table-action supplier-delete-action"
+                                   data-delete-supplier
+                                   data-supplier-name="{{ item.supplier_name }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                {% else %}
+
+                    <tr>
+                        <td colspan="6">
+                            <div class="supplier-empty-state">
+                                <i class="bi bi-truck"></i>
+                                <strong>No suppliers added yet</strong>
+                                <span>Create your first supplier to start managing vendor purchases.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</div>
+
+<div class="modal fade supplier-delete-modal"
+     id="deleteSupplierModal"
+     tabindex="-1"
+     aria-labelledby="deleteSupplierModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-body">
+
+                <div class="supplier-delete-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+
+                <span class="supplier-delete-kicker">
+                    Confirm Delete
+                </span>
+
+                <h3 id="deleteSupplierModalLabel">
+                    Delete supplier?
+                </h3>
+
+                <p>
+                    <strong id="deleteSupplierName">This supplier</strong>
+                    will be removed from the supplier register. This action cannot be undone.
+                </p>
+
+                <div class="supplier-delete-actions">
+
+                    <button type="button"
+                            class="btn-supplier-modal-cancel"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <a href="#"
+                       class="btn-supplier-modal-delete"
+                       id="confirmDeleteSupplier">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Supplier</span>
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
-    <table class="table table-hover">
-
-        <thead>
-
-            <tr>
-                <th>ID</th>
-                <th>Supplier</th>
-                <th>Company</th>
-                <th>Mobile</th>
-                <th>GST</th>
-                <th>Action</th>
-            </tr>
-
-        </thead>
-
-        <tbody>
-
-        {% for item in suppliers %}
-
-        <tr>
-
-            <td>{{ item.id }}</td>
-            <td>{{ item.supplier_name }}</td>
-            <td>{{ item.company_name }}</td>
-            <td>{{ item.mobile }}</td>
-            <td>{{ item.gst_number }}</td>
-
-            <td>
-
-              <a href="/supplier/edit/{{ item.id }}"
-   class="btn btn-warning btn-sm">
-   Edit
-</a>
-
-                <a href="/supplier/delete/{{ item.id }}"
-                   class="btn btn-danger btn-sm"
-                   onclick="return confirm('Delete Supplier?')">
-                    Delete
-                </a>
-
-            </td>
-
-        </tr>
-
-        {% endfor %}
-
-        </tbody>
-
-    </table>
-
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteSupplierModal");
+    const confirmButton = document.getElementById("confirmDeleteSupplier");
+    const supplierName = document.getElementById("deleteSupplierName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-supplier]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            confirmButton.href = link.href;
+            supplierName.textContent = link.dataset.supplierName || "This supplier";
+            deleteModal.show();
+        });
+    });
+});
+</script>
 
 {% endblock %}

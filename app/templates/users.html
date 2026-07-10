@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Users & Roles
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/users.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="users-page">
+
+    <section class="users-hero">
+        <div>
+            <span class="user-kicker">Access Control</span>
+            <h1>Users & Roles</h1>
+            <p>Create ERP users, assign Admin or User role, and control active login access from one screen.</p>
+        </div>
+
+        <a href="/user/add" class="btn-add-user">
+            <i class="bi bi-person-plus"></i>
+            <span>Add User</span>
+        </a>
+    </section>
+
+    <section class="users-summary">
+        <div class="user-summary-tile">
+            <div class="user-summary-icon icon-blue"><i class="bi bi-people"></i></div>
+            <div>
+                <span>Total Users</span>
+                <strong>{{ users|length }}</strong>
+            </div>
+        </div>
+
+        <div class="user-summary-tile">
+            <div class="user-summary-icon icon-green"><i class="bi bi-shield-check"></i></div>
+            <div>
+                <span>Admins</span>
+                <strong>{{ users|selectattr("role", "equalto", "Admin")|list|length }}</strong>
+            </div>
+        </div>
+
+        <div class="user-summary-tile">
+            <div class="user-summary-icon icon-amber"><i class="bi bi-person-check"></i></div>
+            <div>
+                <span>Active Users</span>
+                <strong>{{ users|selectattr("status", "equalto", "Active")|list|length }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="users-panel">
+        <div class="user-panel-header">
+            <div>
+                <span class="user-panel-label">User Register</span>
+                <h2>System Access</h2>
+            </div>
+            <span class="user-record-count">{{ users|length }} Records</span>
+        </div>
+
+        <div class="users-table-wrap">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in users %}
+                    <tr>
+                        <td><span class="user-id-pill">#{{ item.id }}</span></td>
+                        <td>
+                            <div class="user-name-cell">
+                                <span class="user-avatar">{{ (item.full_name or item.username)[:1]|upper }}</span>
+                                <div>
+                                    <strong>{{ item.full_name or item.username }}</strong>
+                                    <small>{{ item.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="user-role {{ item.role|lower }}">{{ item.role or "User" }}</span></td>
+                        <td><span class="user-status {{ item.status|lower }}">{{ item.status or "Active" }}</span></td>
+                        <td>{{ item.created_at or "-" }}</td>
+                        <td>
+                            <div class="user-action-group">
+                                <a href="/user/edit/{{ item.id }}" class="user-table-action user-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+                                {% if item.username != request.session.get("user") %}
+                                <a href="/user/delete/{{ item.id }}"
+                                   class="user-table-action user-delete-action"
+                                   data-delete-user
+                                   data-user-name="{{ item.username }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="user-empty-state">
+                                <i class="bi bi-shield-lock"></i>
+                                <strong>No users found</strong>
+                                <span>Create your first ERP user.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<div class="modal fade user-delete-modal" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="user-delete-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <span class="user-delete-kicker">Confirm Delete</span>
+                <h3>Delete user?</h3>
+                <p><strong id="deleteUserName">This user</strong> will lose access to the ERP.</p>
+                <div class="user-delete-actions">
+                    <button type="button" class="btn-user-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <a href="#" class="btn-user-modal-delete" id="confirmDeleteUser">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete User</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteUserModal");
+    const confirmButton = document.getElementById("confirmDeleteUser");
+    const userName = document.getElementById("deleteUserName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-user]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+            confirmButton.href = link.href;
+            userName.textContent = link.dataset.userName || "This user";
+            deleteModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,403 +1,328 @@
-body{
-    background:
-    linear-gradient(
-        rgba(12,20,35,0.88),
-        rgba(12,20,35,0.92)
-    ),
-    url("https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=2070");
-
-    background-size:cover;
-    background-position:center;
-    background-attachment:fixed;
-}
-
-/* ==========================================
-   PURCHASE ADD PAGE
-========================================== */
-
-.purchase-add-page{
-    padding:25px;
-}
-
-/* ==========================================
-   HEADER
-========================================== */
-
-.page-header{
+.sales-entry-page{
     display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:25px;
+    flex-direction:column;
+    gap:22px;
 }
 
-.page-header h1{
+.sales-entry-hero{
+    min-height:160px;
+    border-radius:8px;
+    padding:28px;
     color:#fff;
-    font-size:34px;
-    font-weight:700;
-    margin:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    background:linear-gradient(135deg,rgba(6,95,70,.96),rgba(29,78,216,.88));
+    box-shadow:0 18px 40px rgba(6,95,70,.16);
 }
 
-.page-header p{
-    color:#cbd5e1;
-    margin-top:5px;
+.sales-entry-kicker{
+    display:inline-flex;
+    color:#fbcfe8;
+    font-size:12px;
+    font-weight:850;
+    letter-spacing:1.8px;
+    text-transform:uppercase;
+    margin-bottom:8px;
+}
+
+.sales-entry-hero h1{
+    font-size:34px;
+    font-weight:850;
+    margin:0 0 8px;
+}
+
+.sales-entry-hero p{
+    max-width:650px;
+    margin:0;
+    color:#dbeafe;
+    font-size:15px;
+    line-height:1.65;
 }
 
 .btn-back{
-    text-decoration:none;
+    min-height:46px;
+    padding:0 18px;
+    border:1px solid rgba(255,255,255,.34);
+    border-radius:8px;
     color:#fff;
-    background:linear-gradient(
-        135deg,
-        #64748b,
-        #475569
-    );
-
-    padding:12px 25px;
-    border-radius:12px;
-
-    font-weight:600;
+    background:rgba(255,255,255,.1);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    text-decoration:none;
+    font-weight:850;
+    white-space:nowrap;
+    transition:.2s ease;
 }
 
-/* ==========================================
-   GLASS CARD
-========================================== */
-
-.glass-card{
-
-    background:rgba(255,255,255,0.08);
-
-    backdrop-filter:blur(18px);
-
-    border:1px solid rgba(255,255,255,0.15);
-
-    border-radius:20px;
-
-    padding:25px;
-
-    margin-bottom:25px;
-
-    box-shadow:
-        0 10px 30px rgba(0,0,0,.20);
+.btn-back:hover{
+    color:#fff;
+    background:rgba(255,255,255,.18);
+    transform:translateY(-1px);
 }
 
-/* ==========================================
-   FORM GRID
-========================================== */
+.sales-entry-form{
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+}
+
+.sales-entry-panel{
+    border:1px solid #e2e8f0;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 14px 34px rgba(6,95,70,.07);
+    overflow:hidden;
+    padding:24px;
+}
+
+.sales-entry-panel > .sales-entry-panel-header{
+    margin:-24px -24px 22px;
+}
+
+.sales-entry-panel-header{
+    padding:22px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    border-bottom:1px solid #e2e8f0;
+    background:linear-gradient(180deg,#fff,#f0fdf4);
+}
+
+.sales-entry-panel-label{
+    color:#047857;
+    font-size:12px;
+    font-weight:850;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+}
+
+.sales-entry-panel-header h2,
+.item-header h3{
+    color:#0f172a;
+    font-size:21px;
+    font-weight:850;
+    margin:3px 0 0;
+}
+
+.sales-entry-record-count{
+    border:1px solid #bbf7d0;
+    border-radius:999px;
+    padding:7px 12px;
+    color:#047857;
+    background:#f0fdf4;
+    font-size:13px;
+    font-weight:850;
+    white-space:nowrap;
+}
 
 .form-grid{
-
     display:grid;
-
-    grid-template-columns:
-        repeat(3,1fr);
-
-    gap:20px;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:20px 22px;
 }
 
 .form-grid label{
-
     display:block;
-
-    color:#fff;
-
-    margin-bottom:8px;
-
-    font-size:14px;
-
-    font-weight:600;
+    color:#0f172a;
+    font-size:13px;
+    font-weight:850;
+    margin:0 0 8px;
 }
 
-.form-grid input,
-.form-grid select{
+.sales-form-shell{
+    min-height:48px;
+    border:1px solid #cdeedc;
+    border-radius:8px;
+    background:#fff;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:0 13px;
+    transition:.2s ease;
+}
 
+.sales-form-shell:focus-within{
+    border-color:#059669;
+    box-shadow:0 0 0 4px rgba(5,150,105,.11);
+}
+
+.sales-form-shell i{
+    color:#047857;
+    font-size:17px;
+    flex:0 0 auto;
+}
+
+.sales-form-shell input,
+.sales-form-shell select{
     width:100%;
-
-    height:48px;
-
-    border:none;
-
+    min-height:46px;
+    border:0;
     outline:none;
-
-    border-radius:12px;
-
-    background:
-        rgba(255,255,255,0.12);
-
-    color:#fff;
-
-    padding:0 15px;
+    background:transparent;
+    color:#0f172a;
+    font:inherit;
+    font-weight:750;
 }
-
-.form-grid option{
-    color:#000;
-}
-
-/* ==========================================
-   ITEM HEADER
-========================================== */
 
 .item-header{
-
     display:flex;
-
     justify-content:space-between;
-
     align-items:center;
-
-    margin-bottom:20px;
-}
-
-.item-header h3{
-
-    color:white;
-
-    margin:0;
+    gap:16px;
+    margin-bottom:18px;
 }
 
 .btn-add-row{
-
-    border:none;
-
-    color:white;
-
-    cursor:pointer;
-
-    padding:12px 22px;
-
-    border-radius:12px;
-
-    font-weight:600;
-
-    background:linear-gradient(
-        135deg,
-        #2563eb,
-        #7c3aed
-    );
+    min-height:42px;
+    border:0;
+    border-radius:8px;
+    padding:0 14px;
+    color:#500724;
+    background:#f472b6;
+    font-weight:850;
+    transition:.2s ease;
 }
 
-/* ==========================================
-   TABLE
-========================================== */
+.btn-add-row:hover{
+    background:#f9a8d4;
+    transform:translateY(-1px);
+}
 
-#purchaseTable{
-
+#salesTable{
     width:100%;
-
-    border-collapse:collapse;
+    border-collapse:separate;
+    border-spacing:0;
 }
 
-#purchaseTable th{
-
-    padding:15px;
-
+#salesTable th{
+    background:#f0fdf4;
+    color:#475569;
+    font-size:12px;
+    font-weight:850;
+    letter-spacing:.7px;
+    text-transform:uppercase;
+    padding:14px;
+    border-bottom:1px solid #bbf7d0;
     text-align:left;
-
-    color:white;
-
-    background:
-        rgba(255,255,255,0.08);
 }
 
-#purchaseTable td{
-
+#salesTable td{
     padding:12px;
-
-    border-bottom:
-        1px solid rgba(255,255,255,0.08);
+    border-bottom:1px solid #edf7f1;
 }
 
-#purchaseTable input,
-#purchaseTable select{
-
+#salesTable input,
+#salesTable select{
     width:100%;
-
-    height:42px;
-
-    border:none;
-
+    min-height:42px;
+    border:1px solid #cdeedc;
+    border-radius:8px;
     outline:none;
-
-    border-radius:10px;
-
-    background:
-        rgba(255,255,255,0.12);
-
-    color:white;
-
+    background:#fff;
+    color:#0f172a;
     padding:0 10px;
+    font-weight:750;
 }
 
-#purchaseTable option{
-    color:black;
+#salesTable input:focus,
+#salesTable select:focus{
+    border-color:#059669;
+    box-shadow:0 0 0 3px rgba(5,150,105,.1);
 }
-
-/* ==========================================
-   REMOVE BUTTON
-========================================== */
 
 .btn-remove{
-
-    border:none;
-
-    cursor:pointer;
-
-    color:white;
-
-    padding:8px 12px;
-
-    border-radius:10px;
-
-    background:#ef4444;
+    min-width:36px;
+    min-height:36px;
+    border:0;
+    border-radius:8px;
+    color:#be123c;
+    background:#ffe4e6;
+    font-weight:900;
 }
 
-/* ==========================================
-   TOTALS
-========================================== */
+.btn-remove:hover{
+    background:#fecdd3;
+}
 
 .totals-card{
-
-    max-width:500px;
-
+    max-width:520px;
     margin-left:auto;
 }
 
 .total-row{
-
     display:flex;
-
     justify-content:space-between;
-
     padding:12px 0;
-
-    color:white;
-
-    font-size:16px;
+    color:#475569;
+    font-size:15px;
+    font-weight:750;
 }
 
 .grand{
-
+    color:#0f172a;
     font-size:22px;
-
-    font-weight:700;
-
-    color:#10b981;
-
-    border-top:
-        1px solid rgba(255,255,255,0.15);
-
-    margin-top:10px;
-
-    padding-top:20px;
+    font-weight:900;
+    border-top:1px solid #edf7f1;
+    margin-top:8px;
+    padding-top:18px;
 }
 
-/* ==========================================
-   SAVE BUTTON
-========================================== */
-
 .btn-save{
-
     width:100%;
-
-    height:55px;
-
-    margin-top:25px;
-
-    border:none;
-
-    cursor:pointer;
-
-    border-radius:14px;
-
-    color:white;
-
-    font-size:18px;
-
-    font-weight:700;
-
-    background:linear-gradient(
-        135deg,
-        #10b981,
-        #059669
-    );
-
-    transition:.3s;
+    min-height:52px;
+    margin-top:22px;
+    border:0;
+    border-radius:8px;
+    color:#500724;
+    background:#f472b6;
+    font-size:16px;
+    font-weight:900;
+    transition:.2s ease;
 }
 
 .btn-save:hover{
-
-    transform:translateY(-3px);
+    background:#f9a8d4;
+    transform:translateY(-1px);
 }
 
-/* ==========================================
-   RESPONSIVE
-========================================== */
-
 @media(max-width:1000px){
-
     .form-grid{
         grid-template-columns:1fr;
     }
 
-    #purchaseTable{
+    #salesTable{
         display:block;
         overflow-x:auto;
     }
 }
 
-#salesTable{
-    width:100%;
-    border-collapse:collapse;
-}
+@media(max-width:700px){
+    .sales-entry-hero,
+    .item-header,
+    .sales-entry-panel-header{
+        align-items:flex-start;
+        flex-direction:column;
+    }
 
-#salesTable th{
-    color:#fff;
-    padding:12px;
-    text-align:left;
-    font-size:14px;
-}
+    .btn-back,
+    .btn-add-row{
+        width:100%;
+    }
 
-#salesTable td{
-    padding:8px;
-}
+    .sales-entry-panel{
+        padding:18px;
+    }
 
-#salesTable input,
-#salesTable select{
+    .sales-entry-panel > .sales-entry-panel-header{
+        margin:-18px -18px 18px;
+    }
 
-    width:100%;
-    height:45px;
-
-    border:none;
-    outline:none;
-
-    border-radius:10px;
-
-    padding:0 12px;
-
-    background:
-        rgba(255,255,255,.12);
-
-    color:#fff;
-
-    font-size:15px;
-}
-
-#salesTable option{
-    color:#000;
-}
-
-.btn-remove{
-
-    width:42px;
-    height:42px;
-
-    border:none;
-
-    border-radius:10px;
-
-    background:#ef4444;
-
-    color:#fff;
-
-    font-size:18px;
-
-    cursor:pointer;
+    .totals-card{
+        max-width:none;
+    }
 }

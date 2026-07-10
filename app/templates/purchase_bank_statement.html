@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Purchase Bank Statement
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/purchase_bank_statement.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="purchase-bank-page">
+
+    <section class="purchase-bank-hero no-print">
+        <div>
+            <span class="purchase-bank-kicker">Bank Statement</span>
+            <h1>Purchase Bank Statement</h1>
+            <p>Prepare a monthly supplier purchase statement in A4 landscape format with company header and page numbering.</p>
+        </div>
+
+        <button type="button" class="btn-bank-print" onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            <span>Bank Statement Print</span>
+        </button>
+    </section>
+
+    <section class="purchase-bank-filter no-print">
+        <form method="get" action="/purchase-bank-statement" class="purchase-bank-filter-form">
+            <div class="purchase-bank-field">
+                <label>Month</label>
+                <div class="purchase-bank-input">
+                    <i class="bi bi-calendar-month"></i>
+                    <select name="month">
+                        {% for item in months %}
+                        <option value="{{ item.id }}" {% if item.id == month %}selected{% endif %}>
+                            {{ item.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="purchase-bank-field">
+                <label>Year</label>
+                <div class="purchase-bank-input">
+                    <i class="bi bi-calendar3"></i>
+                    <select name="year">
+                        {% for item in years %}
+                        <option value="{{ item }}" {% if item == year %}selected{% endif %}>
+                            {{ item }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-bank-search">
+                <i class="bi bi-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="bank-statement-sheet">
+
+        <header class="bank-statement-header">
+            <h2>{{ company.company_name if company else "Company Name" }}</h2>
+            <p>
+                {% if company %}
+                    {{ company.address or "" }}
+                    {% if company.city %}, {{ company.city }}{% endif %}
+                    {% if company.state %}, {{ company.state }}{% endif %}
+                    {% if company.pincode %} - {{ company.pincode }}{% endif %}
+                {% else %}
+                    Company address not configured
+                {% endif %}
+            </p>
+            <div class="statement-meta">
+                <span>Purchase Bank Statement</span>
+                <strong>
+                    {% for item in months %}
+                        {% if item.id == month %}{{ item.name }}{% endif %}
+                    {% endfor %}
+                    {{ year }}
+                </strong>
+            </div>
+        </header>
+
+        <div class="bank-statement-table-wrap">
+            <table class="bank-statement-table">
+                <thead>
+                    <tr>
+                        <th>SNO</th>
+                        <th>Date</th>
+                        <th>Supplier Name</th>
+                        <th>GST No</th>
+                        <th>Material</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>GST</th>
+                        <th>GST Price</th>
+                        <th>Grand Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ row.purchase_date }}</td>
+                        <td>{{ row.supplier_name or "-" }}</td>
+                        <td>{{ row.gst_number or "-" }}</td>
+                        <td>{{ row.material_name or "-" }}</td>
+                        <td class="statement-number">{{ "%.3f"|format(row.quantity or 0) }}</td>
+                        <td class="statement-number">{{ "%.2f"|format(row.unit_price or 0) }}</td>
+                        <td class="statement-number">{{ "%.2f"|format(row.taxable_total or 0) }}</td>
+                        <td class="statement-number">{{ "%.2f"|format(row.gst_percent or 0) }}%</td>
+                        <td class="statement-number">{{ "%.2f"|format(row.gst_amount or 0) }}</td>
+                        <td class="statement-number statement-grand">{{ "%.2f"|format(row.line_total or 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11">
+                            <div class="statement-empty">
+                                <i class="bi bi-file-earmark-spreadsheet"></i>
+                                <strong>No purchase rows found for this month</strong>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5">Grand Total</td>
+                        <td class="statement-number">{{ "%.3f"|format(summary.total_qty or 0) }}</td>
+                        <td></td>
+                        <td class="statement-number">{{ "%.2f"|format(summary.total_taxable or 0) }}</td>
+                        <td></td>
+                        <td class="statement-number">{{ "%.2f"|format(summary.total_gst or 0) }}</td>
+                        <td class="statement-number statement-grand">{{ "%.2f"|format(summary.grand_total or 0) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <footer class="bank-statement-footer">
+            <span>Generated from Sri Dheepam Manufacturing ERP</span>
+            <span class="page-number"></span>
+        </footer>
+
+    </section>
+
+</div>
+
+{% endblock %}

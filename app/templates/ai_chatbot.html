@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+AI Chatbot
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/ai_tools.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="ai-page">
+
+    <section class="ai-hero chatbot-hero">
+        <div>
+            <span class="ai-kicker">Local ERP Assistant</span>
+            <h1>AI Chatbot Inside ERP</h1>
+            <p>Ask common business questions about sales, purchase, outstanding, expenses, salary and reports from local ERP data.</p>
+        </div>
+
+        <a href="/dashboard" class="btn-ai-hero">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+    </section>
+
+    <section class="chatbot-shell">
+        <div class="chatbot-sidebar">
+            <span class="ai-panel-label">Try Asking</span>
+            <button data-prompt="What is today's sales?">Today's sales</button>
+            <button data-prompt="What is this month purchase?">Month purchase</button>
+            <button data-prompt="Show customer outstanding">Customer outstanding</button>
+            <button data-prompt="Show supplier outstanding">Supplier outstanding</button>
+            <button data-prompt="Analyze expenses">Expense summary</button>
+            <button data-prompt="What reports are available?">Available reports</button>
+        </div>
+
+        <div class="chatbot-panel">
+            <div class="chat-window" id="chatWindow">
+                <div class="chat-message bot">
+                    <div class="chat-avatar"><i class="bi bi-stars"></i></div>
+                    <div class="chat-bubble">
+                        Ask me about your ERP data. I can answer using local sales, purchase, accounts and outstanding records.
+                    </div>
+                </div>
+            </div>
+
+            <form class="chat-form" id="chatForm">
+                <input type="text"
+                       id="chatQuestion"
+                       placeholder="Ask: What is today's sales?"
+                       autocomplete="off"
+                       required>
+                <button type="submit">
+                    <i class="bi bi-send"></i>
+                    <span>Ask</span>
+                </button>
+            </form>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/ai_chatbot.js"></script>
+{% endblock %}

@@ -2,223 +2,216 @@
 
 {% block title %}Company{% endblock %}
 
-{% block content %}
+{% block page_title %}
+Company
+{% endblock %}
 
-<link rel="stylesheet" href="{{ url_for('static', path='css/company.css') }}">
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/company.css">
+{% endblock %}
+
+{% block content %}
 
 <div class="company-page">
 
-    <div class="page-header">
+    <section class="company-hero">
 
         <div>
-            <h2>
-                <i class="fa-solid fa-building"></i>
-                Company Information
-            </h2>
-
+            <span class="company-kicker">Organization Profile</span>
+            <h1>Company Information</h1>
             <p>
-                Manage your company details used throughout the ERP system.
+                Manage the legal, tax and contact details used across invoices, purchase records and ERP documents.
             </p>
         </div>
 
-        <div class="company-logo-card">
-            <div class="logo-circle">
-                <i class="fa-solid fa-city"></i>
+        <div class="company-hero-mark">
+            <i class="bi bi-buildings"></i>
+        </div>
+
+    </section>
+
+    <section class="company-summary">
+
+        <div class="company-summary-tile">
+            <div class="company-summary-icon icon-navy">
+                <i class="bi bi-building-check"></i>
+            </div>
+
+            <div>
+                <span>Company</span>
+                <strong>{{ company.company_name if company else "Not Set" }}</strong>
             </div>
         </div>
 
-    </div>
-
-
-    <form class="company-card">
-
-        <!-- Row -->
-
-        <div class="form-row">
-
-            <div class="form-group">
-
-                <label>Company Name</label>
-
-                <div class="input-box">
-
-                    <i class="fa-solid fa-building"></i>
-
-                    <input
-                    type="text"
-                    placeholder="Enter Company Name"
-                    value="Sree Dheepam Polymers">
-
-                </div>
-
+        <div class="company-summary-tile">
+            <div class="company-summary-icon icon-copper">
+                <i class="bi bi-receipt-cutoff"></i>
             </div>
 
-
-            <div class="form-group">
-
-                <label>GST Number</label>
-
-                <div class="input-box">
-
-                    <i class="fa-solid fa-receipt"></i>
-
-                    <input
-                    type="text"
-                    placeholder="GST Number"
-                    value="ABGTE102354ERGBGFG889">
-
-                </div>
-
+            <div>
+                <span>GST Number</span>
+                <strong>{{ company.gst_number if company and company.gst_number else "Pending" }}</strong>
             </div>
+        </div>
+
+        <div class="company-summary-tile">
+            <div class="company-summary-icon icon-mint">
+                <i class="bi bi-geo-alt"></i>
+            </div>
+
+            <div>
+                <span>Location</span>
+                <strong>{{ company.city if company and company.city else "Not Set" }}</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="company-panel">
+
+        <div class="company-panel-header">
+
+            <div>
+                <span class="company-panel-label">Company Master</span>
+                <h2>Business Details</h2>
+            </div>
+
+            <span class="company-record-count">
+                Primary record
+            </span>
 
         </div>
 
+        <form method="post"
+              action="/company/save"
+              class="company-form">
 
+            <div class="company-form-grid">
 
+                <div class="company-form-field wide-field">
+                    <label>Company Name</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-buildings"></i>
+                        <input
+                            type="text"
+                            name="company_name"
+                            placeholder="Enter Company Name"
+                            value="{{ company.company_name if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
+                <div class="company-form-field">
+                    <label>GST Number</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <input
+                            type="text"
+                            name="gst_number"
+                            placeholder="GST Number"
+                            value="{{ company.gst_number if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-        <div class="form-row">
+                <div class="company-form-field">
+                    <label>Phone Number</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-telephone"></i>
+                        <input
+                            type="text"
+                            name="phone"
+                            placeholder="Phone Number"
+                            value="{{ company.phone if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-            <div class="form-group">
+                <div class="company-form-field">
+                    <label>Email Address</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-envelope"></i>
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value="{{ company.email if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-                <label>Phone Number</label>
+                <div class="company-form-field">
+                    <label>City</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-pin-map"></i>
+                        <input
+                            type="text"
+                            name="city"
+                            placeholder="City"
+                            value="{{ company.city if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-                <div class="input-box">
+                <div class="company-form-field">
+                    <label>State</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-map"></i>
+                        <input
+                            type="text"
+                            name="state"
+                            placeholder="State"
+                            value="{{ company.state if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-                    <i class="fa-solid fa-phone"></i>
+                <div class="company-form-field">
+                    <label>Pincode</label>
+                    <div class="company-input-shell">
+                        <i class="bi bi-signpost"></i>
+                        <input
+                            type="text"
+                            name="pincode"
+                            placeholder="Pincode"
+                            value="{{ company.pincode if company else '' }}"
+                            required>
+                    </div>
+                </div>
 
-                    <input
-                    type="text"
-                    placeholder="Phone Number"
-                    value="98422177889">
-
+                <div class="company-form-field full-field">
+                    <label>Address</label>
+                    <div class="company-input-shell company-textarea-shell">
+                        <i class="bi bi-geo-alt"></i>
+                        <textarea
+                            name="address"
+                            rows="4"
+                            placeholder="Address"
+                            required>{{ company.address if company else '' }}</textarea>
+                    </div>
                 </div>
 
             </div>
 
-            <div class="form-group">
+            <div class="company-form-actions">
 
-                <label>Email Address</label>
+                <a href="/dashboard"
+                   class="btn-company-secondary">
+                    Cancel
+                </a>
 
-                <div class="input-box">
-
-                    <i class="fa-solid fa-envelope"></i>
-
-                    <input
-                    type="email"
-                    placeholder="Email"
-                    value="sridheepam@gmail.com">
-
-                </div>
+                <button type="submit"
+                        class="btn-save-company">
+                    <i class="bi bi-check2-circle"></i>
+                    <span>Save Company</span>
+                </button>
 
             </div>
 
-        </div>
+        </form>
 
-
-
-
-
-        <div class="form-row">
-
-            <div class="form-group">
-
-                <label>City</label>
-
-                <div class="input-box">
-
-                    <i class="fa-solid fa-location-dot"></i>
-
-                    <input
-                    type="text"
-                    placeholder="City"
-                    value="Coimbatore">
-
-                </div>
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label>State</label>
-
-                <div class="input-box">
-
-                    <i class="fa-solid fa-map"></i>
-
-                    <input
-                    type="text"
-                    placeholder="State"
-                    value="Tamil Nadu">
-
-                </div>
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label>Pincode</label>
-
-                <div class="input-box">
-
-                    <i class="fa-solid fa-location-crosshairs"></i>
-
-                    <input
-                    type="text"
-                    placeholder="Pincode"
-                    value="641032">
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-
-
-        <div class="form-group">
-
-            <label>Address</label>
-
-            <div class="input-box textarea">
-
-                <i class="fa-solid fa-location-dot"></i>
-
-                <textarea rows="5"
-                placeholder="Address">Velanthavalam Road,
-Othakkalmandapam,
-Coimbatore.</textarea>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="button-area">
-
-            <button class="save-btn">
-
-                <i class="fa-solid fa-floppy-disk"></i>
-
-                Save Company
-
-            </button>
-
-           
-
-        </div>
-
-    </form>
+    </section>
 
 </div>
-
-<script src="{{ url_for('static', path='js/company.js') }}"></script>
 
 {% endblock %}

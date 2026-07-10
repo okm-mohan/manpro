@@ -2,391 +2,185 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/dashboard.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 {% endblock %}
 
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 
-<div class="welcome-section">
-    <div class="welcome-left">
-        <h2>Good Evening, Administrator 👋</h2>
-        <p>Welcome back to your Manufacturing ERP Dashboard</p>
-    </div>
+<div class="erp-dashboard">
 
-    <div class="welcome-right">
-        <div class="live-date">
-            <i class="fas fa-calendar-alt"></i>
+    <section class="dashboard-hero">
+        <div>
+            <span class="dashboard-kicker">Control Center</span>
+            <h1 id="dashboardGreeting">Welcome, Administrator</h1>
+            <p>Review today's business movement, payment follow-ups, recent entries and the most used ERP actions.</p>
+        </div>
+
+        <div class="dashboard-clock-card">
             <span id="todayDate"></span>
+            <strong id="liveClock"></strong>
         </div>
-
-        <div class="live-time">
-            <i class="fas fa-clock"></i>
-            <span id="liveClock"></span>
-        </div>
-    </div>
-</div>
-
-<!-- ===========================
-        KPI CARDS
-============================ -->
-
-<div class="kpi-grid">
-
-    <!-- Today's Sales -->
-
-    <div class="kpi-card sales">
-
-        <div class="kpi-icon">
-            <i class="fas fa-shopping-cart"></i>
-        </div>
-
-        <div class="kpi-content">
-
-            <small>Today's Sales</small>
-
-            <h2 id="salesCounter">₹ 0</h2>
-
-            <span class="growth positive">
-                ▲ Today
-            </span>
-
-        </div>
-
-    </div>
-
-    <!-- Today's Purchase -->
-
-    <div class="kpi-card purchase">
-
-        <div class="kpi-icon">
-            <i class="fas fa-truck-loading"></i>
-        </div>
-
-        <div class="kpi-content">
-
-            <small>Today's Purchase</small>
-
-            <h2 id="purchaseCounter">₹ 0</h2>
-
-            <span class="growth negative">
-                ▼ Today
-            </span>
-
-        </div>
-
-    </div>
-
-    <!-- Today's Profit -->
-
-    <div class="kpi-card profit">
-
-        <div class="kpi-icon">
-            <i class="fas fa-chart-line"></i>
-        </div>
-
-        <div class="kpi-content">
-
-            <small>Today's Profit</small>
-
-            <h2 id="profitCounter">₹ 0</h2>
-
-            <span class="growth positive">
-                ▲ Live
-            </span>
-
-        </div>
-
-    </div>
-
-    <!-- Current Stock -->
-
-    <div class="kpi-card stock">
-
-        <div class="kpi-icon">
-            <i class="fas fa-boxes"></i>
-        </div>
-
-        <div class="kpi-content">
-
-            <small>Current Stock</small>
-
-            <h2 id="stockCounter">0</h2>
-
-            <span class="growth neutral">
-                Available
-            </span>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- ===========================
-        CHARTS
-============================ -->
-
-<div class="dashboard-row">
-
-    <div class="dashboard-box large-box">
-
-        <div class="box-header">
-            <h4>Sales Analytics</h4>
-        </div>
-
-        <canvas id="salesChart"></canvas>
-
-    </div>
-
-    <div class="dashboard-box">
-
-        <div class="box-header">
-            <h4>Inventory</h4>
-        </div>
-
-        <canvas id="stockChart"></canvas>
-
-    </div>
-
-</div>
-
-<!-- ===========================
-        QUICK ACTIONS
-============================ -->
-
-<div class="dashboard-row">
-
-    <div class="dashboard-box">
-
-        <div class="box-header">
-            <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
-        </div>
-
-        <div class="quick-grid">
-
-            <a href="/purchase" class="quick-card blue">
-                <i class="fas fa-shopping-cart"></i>
-                <span>Purchase</span>
-            </a>
-
-            <a href="/sales" class="quick-card green">
-                <i class="fas fa-cash-register"></i>
-                <span>Sales</span>
-            </a>
-
-            <a href="/products" class="quick-card purple">
-                <i class="fas fa-box-open"></i>
-                <span>Products</span>
-            </a>
-
-            <a href="/customers" class="quick-card cyan">
-                <i class="fas fa-users"></i>
-                <span>Customers</span>
-            </a>
-
-        </div>
-
-    </div>
-
-    <div class="dashboard-box">
-
-        <div class="box-header">
-            <h4>Today's Summary</h4>
-        </div>
-
-        <div class="summary-list">
-
-            <div class="summary-item">
-                <span>Total Orders</span>
-                <strong>58</strong>
+    </section>
+
+    <section class="dashboard-kpi-grid">
+        <div class="dashboard-kpi-card sales">
+            <div class="dashboard-kpi-icon"><i class="bi bi-receipt"></i></div>
+            <div>
+                <span>Today's Sales</span>
+                <strong data-counter="{{ today_sales or 0 }}">&#8377; 0</strong>
+                <small>This day billing</small>
             </div>
-
-            <div class="summary-item">
-                <span>Pending Orders</span>
-                <strong>8</strong>
-            </div>
-
-            <div class="summary-item">
-                <span>Completed Orders</span>
-                <strong>46</strong>
-            </div>
-
-            <div class="summary-item">
-                <span>Today's Collection</span>
-                <strong>₹ 86,500</strong>
-            </div>
-
         </div>
 
-    </div>
-
-</div>
-
-<!-- ===========================
-        RECENT ACTIVITY
-============================ -->
-
-<div class="dashboard-row">
-
-    <div class="dashboard-box large-box">
-
-        <div class="box-header">
-            <h4>Recent Activities</h4>
+        <div class="dashboard-kpi-card purchase">
+            <div class="dashboard-kpi-icon"><i class="bi bi-cart-plus"></i></div>
+            <div>
+                <span>Today's Purchase</span>
+                <strong data-counter="{{ today_purchase or 0 }}">&#8377; 0</strong>
+                <small>This day procurement</small>
+            </div>
         </div>
 
-        <div class="activity-timeline">
+        <div class="dashboard-kpi-card receivable">
+            <div class="dashboard-kpi-icon"><i class="bi bi-person-check"></i></div>
+            <div>
+                <span>Customer Outstanding</span>
+                <strong data-counter="{{ pending_customer or 0 }}">&#8377; 0</strong>
+                <small>Collection follow-up</small>
+            </div>
+        </div>
 
-            <div class="activity-item">
-                <div class="activity-dot bg-success"></div>
+        <div class="dashboard-kpi-card payable">
+            <div class="dashboard-kpi-icon"><i class="bi bi-wallet2"></i></div>
+            <div>
+                <span>Supplier Outstanding</span>
+                <strong data-counter="{{ pending_supplier or 0 }}">&#8377; 0</strong>
+                <small>Payment planning</small>
+            </div>
+        </div>
+    </section>
 
-                <div class="activity-content">
-                    <strong>Purchase Added</strong>
-                    <small>Steel Rods purchased</small>
-                    <span>10 minutes ago</span>
+    <section class="dashboard-main-grid">
+
+        <div class="dashboard-panel sales-chart-panel">
+            <div class="dashboard-panel-header">
+                <div>
+                    <span>Sales Trend</span>
+                    <h2>Recent Month Sales</h2>
                 </div>
-
+                <a href="/monthly-sales-report">View Report</a>
             </div>
 
-            <div class="activity-item">
-
-                <div class="activity-dot bg-primary"></div>
-
-                <div class="activity-content">
-                    <strong>Sales Invoice</strong>
-                    <small>Invoice #10025</small>
-                    <span>25 minutes ago</span>
-                </div>
-
+            <div class="sales-chart-shell">
+                <canvas id="salesChart"
+                        data-labels='{{ sales_chart_labels|tojson }}'
+                        data-values='{{ sales_chart_values|tojson }}'></canvas>
             </div>
-
         </div>
 
-    </div>
-
-    <div class="dashboard-box">
-
-        <div class="box-header">
-            <h4>Notifications</h4>
-        </div>
-
-        <ul class="notification-list">
-
-            <li>
-                <i class="fas fa-exclamation-circle text-danger"></i>
-                Cement Stock Low
-            </li>
-
-            <li>
-                <i class="fas fa-money-check text-warning"></i>
-                Payment Due Today
-            </li>
-
-            <li>
-                <i class="fas fa-check-circle text-success"></i>
-                Production Completed
-            </li>
-
-        </ul>
-
-    </div>
-
-</div>
-
-<!-- ===========================
-        LOW STOCK
-============================ -->
-
-<div class="dashboard-row">
-
-    <div class="dashboard-box large-box">
-
-        <div class="box-header">
-            <h4>Low Stock Alerts</h4>
-        </div>
-
-        <table class="table table-hover">
-
-            <thead>
-
-                <tr>
-
-                    <th>Material</th>
-                    <th>Available</th>
-                    <th>Minimum</th>
-                    <th>Status</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                <tr>
-
-                    <td>Steel Rod</td>
-                    <td>20</td>
-                    <td>50</td>
-                    <td>
-                        <span class="badge bg-danger">
-                            Low
-                        </span>
-                    </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>Cement</td>
-                    <td>15</td>
-                    <td>40</td>
-                    <td>
-                        <span class="badge bg-warning">
-                            Critical
-                        </span>
-                    </td>
-
-                </tr>
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    <div class="dashboard-box">
-
-        <div class="box-header">
-            <h4>Production Status</h4>
-        </div>
-
-        <div class="progress-group">
-
-            <label>Completed</label>
-
-            <div class="progress">
-                <div class="progress-bar bg-success" style="width:82%">
-                    82%
+        <div class="dashboard-panel action-panel">
+            <div class="dashboard-panel-header">
+                <div>
+                    <span>Fast Work</span>
+                    <h2>Needed Options</h2>
                 </div>
             </div>
 
-            <label>Running</label>
-
-            <div class="progress">
-                <div class="progress-bar bg-primary" style="width:60%">
-                    60%
-                </div>
+            <div class="dashboard-action-grid">
+                <a href="/sales/add" class="dashboard-action-card blue">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Add Sales</span>
+                </a>
+                <a href="/purchase/add" class="dashboard-action-card amber">
+                    <i class="bi bi-cart-plus"></i>
+                    <span>Add Purchase</span>
+                </a>
+                <a href="/customer-outstanding-report" class="dashboard-action-card green">
+                    <i class="bi bi-person-check"></i>
+                    <span>Collections</span>
+                </a>
+                <a href="/supplier-outstanding-report" class="dashboard-action-card rose">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Payables</span>
+                </a>
+                <a href="/employee-attendance" class="dashboard-action-card indigo">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="/salary-receipt" class="dashboard-action-card cyan">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Salary Receipt</span>
+                </a>
             </div>
-
         </div>
 
-    </div>
+    </section>
+
+    <section class="dashboard-main-grid secondary-grid">
+
+        <div class="dashboard-panel">
+            <div class="dashboard-panel-header">
+                <div>
+                    <span>Latest Entries</span>
+                    <h2>Recent Sales</h2>
+                </div>
+                <a href="/sales">Open Sales</a>
+            </div>
+
+            <div class="dashboard-list">
+                {% for row in recent_sales %}
+                <div class="dashboard-list-item">
+                    <div>
+                        <strong>{{ row.invoice_number }}</strong>
+                        <span>{{ row.customer_name or "Customer" }} | {{ row.sale_date }}</span>
+                    </div>
+                    <b>&#8377; {{ "{:,.2f}".format(row.grand_total or 0) }}</b>
+                </div>
+                {% else %}
+                <div class="dashboard-empty">No recent sales found</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dashboard-panel">
+            <div class="dashboard-panel-header">
+                <div>
+                    <span>Latest Entries</span>
+                    <h2>Recent Purchases</h2>
+                </div>
+                <a href="/purchase">Open Purchase</a>
+            </div>
+
+            <div class="dashboard-list">
+                {% for row in recent_purchases %}
+                <div class="dashboard-list-item">
+                    <div>
+                        <strong>{{ row.purchase_no }}</strong>
+                        <span>{{ row.supplier_name or "Supplier" }} | {{ row.purchase_date }}</span>
+                    </div>
+                    <b>&#8377; {{ "{:,.2f}".format(row.grand_total or 0) }}</b>
+                </div>
+                {% else %}
+                <div class="dashboard-empty">No recent purchases found</div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </section>
+
+    <section class="dashboard-report-strip">
+        <a href="/purchase-bank-statement"><i class="bi bi-bank"></i><span>Purchase Bank Statement</span></a>
+        <a href="/sales-bank-statement"><i class="bi bi-bank2"></i><span>Sales Bank Statement</span></a>
+        <a href="/monthly-sales-report"><i class="bi bi-calendar2-week"></i><span>Monthly Sales</span></a>
+        <a href="/employees"><i class="bi bi-person-workspace"></i><span>Employees</span></a>
+    </section>
 
 </div>
 
-<button class="fab-button">
-    <i class="fas fa-plus"></i>
-</button>
+{% endblock %}
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/dashboard.js"></script>
 {% endblock %}

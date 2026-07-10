@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+AI Expense Analyzer
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/ai_tools.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="ai-page">
+
+    <section class="ai-hero expense-ai-hero">
+        <div>
+            <span class="ai-kicker">Local ERP Intelligence</span>
+            <h1>AI Expense Analyzer</h1>
+            <p>Analyze income, expense categories, payment modes and risk signals from your local accounts ledger.</p>
+        </div>
+
+        <a href="/accounts" class="btn-ai-hero">
+            <i class="bi bi-cash-coin"></i>
+            <span>Open Accounts</span>
+        </a>
+    </section>
+
+    <section class="ai-filter-panel">
+        <form method="get" action="/ai-expense-analyzer" class="ai-filter-form">
+            <div class="ai-field">
+                <label>From Date</label>
+                <div class="ai-input-shell">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" name="from_date" value="{{ from_date }}">
+                </div>
+            </div>
+
+            <div class="ai-field">
+                <label>To Date</label>
+                <div class="ai-input-shell">
+                    <i class="bi bi-calendar-check"></i>
+                    <input type="date" name="to_date" value="{{ to_date }}">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-ai-search">
+                <i class="bi bi-stars"></i>
+                <span>Analyze</span>
+            </button>
+        </form>
+    </section>
+
+    {% if not has_accounts %}
+    <section class="ai-panel">
+        <div class="ai-empty">
+            <i class="bi bi-database-exclamation"></i>
+            <strong>Accounts tables are not ready</strong>
+            <span>Run the Accounts SQL first, then add expense and income entries.</span>
+        </div>
+    </section>
+    {% else %}
+
+    <section class="ai-summary-grid">
+        <div class="ai-summary-card income">
+            <span>Total Income</span>
+            <strong>&#8377; {{ "{:,.2f}".format(total_income or 0) }}</strong>
+        </div>
+
+        <div class="ai-summary-card expense">
+            <span>Total Expense</span>
+            <strong>&#8377; {{ "{:,.2f}".format(total_expense or 0) }}</strong>
+        </div>
+
+        <div class="ai-summary-card net">
+            <span>Net Balance</span>
+            <strong>&#8377; {{ "{:,.2f}".format(net_total or 0) }}</strong>
+        </div>
+    </section>
+
+    <section class="ai-insight-grid">
+        {% for item in insights %}
+        <div class="ai-insight-card {{ item.type }}">
+            <i class="bi bi-lightbulb"></i>
+            <div>
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.message }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+
+    <section class="ai-two-column">
+        <div class="ai-panel">
+            <div class="ai-panel-header">
+                <div>
+                    <span>Expense Category</span>
+                    <h2>Top Expense Heads</h2>
+                </div>
+            </div>
+
+            <div class="ai-table-wrap">
+                <table class="ai-table">
+                    <thead>
+                        <tr>
+                            <th>Account</th>
+                            <th>Entries</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in expense_rows %}
+                        <tr>
+                            <td>{{ row.account_name }}</td>
+                            <td>{{ row.entry_count }}</td>
+                            <td class="ai-number">&#8377; {{ "{:,.2f}".format(row.total_amount or 0) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">
+                                <div class="ai-empty compact">No expense entries found.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="ai-panel">
+            <div class="ai-panel-header">
+                <div>
+                    <span>Payment Mode</span>
+                    <h2>Expense Payment Split</h2>
+                </div>
+            </div>
+
+            <div class="ai-table-wrap">
+                <table class="ai-table">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Entries</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in mode_rows %}
+                        <tr>
+                            <td>{{ row.payment_mode or "Not Set" }}</td>
+                            <td>{{ row.entry_count }}</td>
+                            <td class="ai-number">&#8377; {{ "{:,.2f}".format(row.total_amount or 0) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">
+                                <div class="ai-empty compact">No payment mode data found.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Employees
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/employees.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="employees-page">
+
+    <section class="employees-hero">
+        <div>
+            <span class="employee-kicker">People Master</span>
+            <h1>Employee Management</h1>
+            <p>Manage employee profiles, salary details, advances, contact information and documents from one HR register.</p>
+        </div>
+
+        <a href="/employee/add" class="btn-add-employee">
+            <i class="bi bi-person-plus"></i>
+            <span>Add Employee</span>
+        </a>
+    </section>
+
+    <section class="employees-summary">
+        <div class="employee-summary-tile">
+            <div class="employee-summary-icon icon-cyan"><i class="bi bi-people"></i></div>
+            <div>
+                <span>Total Employees</span>
+                <strong>{{ employees|length }}</strong>
+            </div>
+        </div>
+
+        <div class="employee-summary-tile">
+            <div class="employee-summary-icon icon-green"><i class="bi bi-check2-circle"></i></div>
+            <div>
+                <span>Active Staff</span>
+                <strong>{{ employees|selectattr("status", "equalto", "Active")|list|length }}</strong>
+            </div>
+        </div>
+
+        <div class="employee-summary-tile">
+            <div class="employee-summary-icon icon-amber"><i class="bi bi-currency-rupee"></i></div>
+            <div>
+                <span>Salary Records</span>
+                <strong>{{ employees|selectattr("monthly_salary")|list|length }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="employees-panel">
+        <div class="employee-panel-header">
+            <div>
+                <span class="employee-panel-label">Employee Register</span>
+                <h2>Staff Directory</h2>
+            </div>
+            <span class="employee-record-count">{{ employees|length }} Records</span>
+        </div>
+
+        <div class="employees-table-wrap">
+            <table class="employees-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th>Mobile</th>
+                        <th>Monthly Salary</th>
+                        <th>Advance</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in employees %}
+                    <tr>
+                        <td><span class="employee-id-pill">#{{ item.id }}</span></td>
+                        <td>
+                            <div class="employee-name-cell">
+                                {% if item.photo_path %}
+                                <img src="{{ item.photo_path }}" alt="{{ item.employee_name }}">
+                                {% else %}
+                                <span class="employee-avatar">{{ item.employee_name[:1]|upper }}</span>
+                                {% endif %}
+                                <div>
+                                    <strong>{{ item.employee_name }}</strong>
+                                    <small>{{ item.employee_code or item.designation or "Employee" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="employee-badge">{{ item.department or "-" }}</span></td>
+                        <td><span class="employee-mobile-badge">{{ item.mobile or item.phone or "-" }}</span></td>
+                        <td class="employee-money">&#8377; {{ "%.2f"|format(item.monthly_salary or 0) }}</td>
+                        <td class="employee-money employee-advance">&#8377; {{ "%.2f"|format(item.advance_amount or 0) }}</td>
+                        <td><span class="employee-status {{ item.status|lower }}">{{ item.status or "Active" }}</span></td>
+                        <td>
+                            <div class="employee-action-group">
+                                <a href="/employee/edit/{{ item.id }}" class="employee-table-action employee-edit-action">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Edit</span>
+                                </a>
+                                <a href="/employee/delete/{{ item.id }}"
+                                   class="employee-table-action employee-delete-action"
+                                   data-delete-employee
+                                   data-employee-name="{{ item.employee_name }}">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Delete</span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="employee-empty-state">
+                                <i class="bi bi-person-workspace"></i>
+                                <strong>No employees added yet</strong>
+                                <span>Create your first employee to start attendance and salary processing.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<div class="modal fade employee-delete-modal" id="deleteEmployeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="employee-delete-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <span class="employee-delete-kicker">Confirm Delete</span>
+                <h3>Delete employee?</h3>
+                <p><strong id="deleteEmployeeName">This employee</strong> will be removed from employee register and attendance records.</p>
+                <div class="employee-delete-actions">
+                    <button type="button" class="btn-employee-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <a href="#" class="btn-employee-modal-delete" id="confirmDeleteEmployee">
+                        <i class="bi bi-trash3"></i>
+                        <span>Delete Employee</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalElement = document.getElementById("deleteEmployeeModal");
+    const confirmButton = document.getElementById("confirmDeleteEmployee");
+    const employeeName = document.getElementById("deleteEmployeeName");
+
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        return;
+    }
+
+    const deleteModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-delete-employee]").forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+            confirmButton.href = link.href;
+            employeeName.textContent = link.dataset.employeeName || "This employee";
+            deleteModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}
