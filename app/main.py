@@ -3,7 +3,13 @@ from fastapi import UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
-from app.database import SessionLocal
+from app.database import (
+    SessionLocal,
+    MasterSessionLocal,
+    build_mysql_url,
+    reset_tenant_database_url,
+    set_tenant_database_url,
+)
 from fastapi import Form
 from fastapi.responses import RedirectResponse
 from datetime import date, timedelta
@@ -28,10 +34,39 @@ from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI()
 
-app.add_middleware(SessionMiddleware, secret_key="SridheepamERP2026@SecretKey")
+
+class TenantDatabaseMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        token = None
+        path = request.url.path
+        public_paths = (
+            "/company-enter",
+            "/login",
+            "/switch-company",
+            "/static/",
+            "/favicon.ico",
+        )
+        tenant_database_url = request.session.get("tenant_database_url")
+
+        if not tenant_database_url and not any(path == item or path.startswith(item) for item in public_paths):
+            return RedirectResponse("/company-enter", status_code=303)
+
+        if tenant_database_url:
+            token = set_tenant_database_url(tenant_database_url)
+
+        try:
+            return await call_next(request)
+        finally:
+            if token:
+                reset_tenant_database_url(token)
+
+
+app.add_middleware(TenantDatabaseMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "ManProPlusERP2026@SecretKey"))
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -53,6 +88,120 @@ def hash_password(password):
 templates = Jinja2Templates(env=env)
 
 
+def get_master_content():
+    content = {
+        "offers": [],
+        "updates": [],
+    }
+
+    db = MasterSessionLocal()
+
+    try:
+        rows = db.execute(text("""
+            SELECT content_type, title, message
+            FROM saas_announcements
+            WHERE status='Active'
+            ORDER BY display_order, id DESC
+            LIMIT 8
+        """)).mappings().all()
+
+        for row in rows:
+            item = {
+                "title": row["title"],
+                "message": row["message"],
+            }
+            if row["content_type"] == "Offer":
+                content["offers"].append(item)
+            else:
+                content["updates"].append(item)
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+    if not content["offers"]:
+        content["offers"] = [
+            {
+                "title": "AI-ready manufacturing ERP",
+                "message": "Manage materials, purchase, sales, accounts, payroll and reports in one SaaS platform.",
+            }
+        ]
+
+    if not content["updates"]:
+        content["updates"] = [
+            {
+                "title": "ManPro Plus",
+                "message": "The complete AI-powered manufacturing ERP for growing industries.",
+            }
+        ]
+
+    return content
+
+
+def build_tenant_url(company):
+    if company.get("database_url"):
+        return company["database_url"]
+
+    return build_mysql_url(
+        database_name=company["database_name"],
+        user=company.get("database_user"),
+        password=company.get("database_password"),
+        host=company.get("database_host"),
+        port=company.get("database_port"),
+    )
+
+
+def get_tenant_by_code(company_code):
+    db = MasterSessionLocal()
+    normalized_code = (company_code or "").strip().upper()
+
+    try:
+        company = db.execute(
+            text("""
+                SELECT *
+                FROM saas_companies
+                WHERE company_code=:company_code
+                AND status='Active'
+                LIMIT 1
+            """),
+            {"company_code": normalized_code},
+        ).mappings().first()
+
+        return dict(company) if company else None
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def selected_company_context(request: Request):
+    return {
+        "company_code": request.session.get("tenant_company_code", ""),
+        "company_name": request.session.get("tenant_company_name", "ManPro Plus"),
+        "company_tagline": request.session.get("tenant_company_tagline", "The Complete AI-Powered Manufacturing ERP"),
+        "company_logo_url": request.session.get("tenant_company_logo_url", ""),
+        "company_banner_url": request.session.get("tenant_company_banner_url", ""),
+        "plan_name": request.session.get("tenant_plan_name", ""),
+    }
+
+
+def store_selected_company(request: Request, company):
+    request.session["tenant_company_id"] = company["id"]
+    request.session["tenant_company_code"] = company["company_code"]
+    request.session["tenant_company_name"] = company["company_name"]
+    request.session["tenant_company_tagline"] = company.get("tagline") or "The Complete AI-Powered Manufacturing ERP"
+    request.session["tenant_company_logo_url"] = company.get("logo_url") or ""
+    request.session["tenant_company_banner_url"] = company.get("banner_image_url") or ""
+    request.session["tenant_plan_name"] = company.get("plan_name") or "Starter"
+    request.session["tenant_database_url"] = build_tenant_url(company)
+
+
+def require_company_selection(request: Request):
+    if not request.session.get("tenant_database_url"):
+        return RedirectResponse("/company-enter", status_code=303)
+    return None
+
+
 def is_admin_user(request: Request):
     return request.session.get("role", "Admin") == "Admin"
 
@@ -69,10 +218,69 @@ async def home(request: Request):
     if "user" in request.session:
         return RedirectResponse("/dashboard", status_code=303)
 
+    if request.session.get("tenant_database_url"):
+        return RedirectResponse("/login", status_code=303)
+
+    return RedirectResponse("/company-enter", status_code=303)
+
+
+@app.get("/company-enter")
+async def company_enter_page(request: Request):
+    if request.session.get("user"):
+        return RedirectResponse("/dashboard", status_code=303)
+
+    content = get_master_content()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="company_enter.html",
+        context={
+            "request": request,
+            "error": "",
+            "offers": content["offers"],
+            "updates": content["updates"],
+        },
+    )
+
+
+@app.post("/company-enter")
+async def company_enter(
+    request: Request,
+    company_code: str = Form(...),
+):
+    company = get_tenant_by_code(company_code)
+
+    if not company:
+        content = get_master_content()
+
+        return templates.TemplateResponse(
+            request=request,
+            name="company_enter.html",
+            context={
+                "request": request,
+                "error": "Company code not found or inactive.",
+                "offers": content["offers"],
+                "updates": content["updates"],
+            },
+        )
+
+    request.session.clear()
+    store_selected_company(request, company)
+
     return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/switch-company")
+async def switch_company(request: Request):
+    request.session.clear()
+    return RedirectResponse("/company-enter", status_code=303)
 
 @app.get("/dashboard")
 async def dashboard(request: Request):
+
+    blocked = require_company_selection(request)
+    if blocked:
+        return blocked
 
     if "user" not in request.session:
         return RedirectResponse(url="/login", status_code=303)
@@ -4718,13 +4926,17 @@ def salary_receipt(request: Request, employee_id: int = 0, month: int = 0, year:
 
 @app.get("/login")
 async def login_page(request: Request):
+    blocked = require_company_selection(request)
+    if blocked:
+        return blocked
 
     return templates.TemplateResponse(
         request=request,
         name="login.html",
         context={
             "request": request,
-            "error": ""
+            "error": "",
+            "tenant": selected_company_context(request),
         }
     )
 
@@ -4734,21 +4946,37 @@ async def login(
     username: str = Form(...),
     password: str = Form(...)
 ):
+    blocked = require_company_selection(request)
+    if blocked:
+        return blocked
 
     db = SessionLocal()
 
-    user = db.execute(
-        text("""
-            SELECT *
-            FROM users
-            WHERE username=:username
-            AND password=:password
-        """),
-        {
-            "username": username,
-            "password": password
-        }
-    ).mappings().first()
+    try:
+        user = db.execute(
+            text("""
+                SELECT *
+                FROM users
+                WHERE username=:username
+                AND password=:password
+            """),
+            {
+                "username": username,
+                "password": password
+            }
+        ).mappings().first()
+    except Exception:
+        db.close()
+
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "request": request,
+                "error": "Company database connection failed. Please verify the selected company database settings.",
+                "tenant": selected_company_context(request),
+            },
+        )
 
     db.close()
 
@@ -4761,13 +4989,15 @@ async def login(
                 name="login.html",
                 context={
                     "request": request,
-                    "error": "User account is inactive."
+                    "error": "User account is inactive.",
+                    "tenant": selected_company_context(request),
                 }
             )
 
         request.session["user"] = user_data.get("username", username)
         request.session["full_name"] = user_data.get("full_name") or user_data.get("username", username)
         request.session["role"] = user_data.get("role", "Admin")
+        request.session["plan_name"] = request.session.get("tenant_plan_name", "")
 
         return RedirectResponse("/dashboard", status_code=303)
 
@@ -4776,14 +5006,26 @@ async def login(
         name="login.html",
         context={
             "request": request,
-            "error": "Invalid Username or Password"
+            "error": "Invalid Username or Password",
+            "tenant": selected_company_context(request),
         }
     )
 
 @app.get("/logout")
 async def logout(request: Request):
 
+    tenant_context = selected_company_context(request)
+    tenant_database_url = request.session.get("tenant_database_url")
     request.session.clear()
+
+    if tenant_database_url:
+        request.session["tenant_company_code"] = tenant_context["company_code"]
+        request.session["tenant_company_name"] = tenant_context["company_name"]
+        request.session["tenant_company_tagline"] = tenant_context["company_tagline"]
+        request.session["tenant_company_logo_url"] = tenant_context["company_logo_url"]
+        request.session["tenant_company_banner_url"] = tenant_context["company_banner_url"]
+        request.session["tenant_plan_name"] = tenant_context["plan_name"]
+        request.session["tenant_database_url"] = tenant_database_url
 
     return RedirectResponse("/login", status_code=303)
 

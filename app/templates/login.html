@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sridheepam ERP - Login</title>
+    <title>{{ tenant.company_name if tenant else "ManPro Plus" }} - Login</title>
 
     <link rel="stylesheet" href="/static/css/login.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -12,17 +12,24 @@
 
 <div class="login-page">
 
-    <div class="login-left">
+    <div class="login-left tenant-login-left"
+         {% if tenant and tenant.company_banner_url %}
+         style="background-image:linear-gradient(135deg,rgba(15,23,42,.88),rgba(30,58,138,.78)),url('{{ tenant.company_banner_url }}');"
+         {% endif %}>
         <div class="brand">
 
-            <div class="logo">
+            <div class="logo tenant-login-logo">
+                {% if tenant and tenant.company_logo_url %}
+                <img src="{{ tenant.company_logo_url }}" alt="{{ tenant.company_name }}">
+                {% else %}
                 <i class="fa-solid fa-building"></i>
+                {% endif %}
             </div>
 
-            <h1>Sridheepam ERP</h1>
+            <h1>{{ tenant.company_name if tenant else "ManPro Plus" }}</h1>
 
             <p>
-                Manufacturing ERP Management System
+                {{ tenant.company_tagline if tenant else "The Complete AI-Powered Manufacturing ERP" }}
             </p>
 
             <ul class="features">
@@ -43,7 +50,7 @@
             <h2>Welcome Back</h2>
 
             <p class="subtitle">
-                Sign in to continue
+                Sign in to {{ tenant.company_name if tenant else "your company" }} workspace
             </p>
 
             <form action="/login" method="post" id="loginForm">
@@ -123,9 +130,14 @@
 
             </form>
 
+            <a href="/switch-company" class="switch-company-link">
+                <i class="fa-solid fa-repeat"></i>
+                Change Company
+            </a>
+
             <div class="footer">
 
-                Version 1.0
+                ManPro Plus SaaS{% if tenant and tenant.plan_name %} - {{ tenant.plan_name }} Plan{% endif %}
 
             </div>
 

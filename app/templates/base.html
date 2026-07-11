@@ -8,7 +8,7 @@
 
     <title>
         {% block title %}
-        Manufacturing ERP System
+        {{ request.session.get("tenant_company_name", "ManPro Plus") }} ERP
         {% endblock %}
     </title>
 
@@ -76,7 +76,7 @@
 
                             <li class="dropdown-header">
                                 <strong>{{ request.session.get("full_name", request.session.get("user", "Administrator")) }}</strong><br>
-                                <small class="text-muted">{{ request.session.get("role", "Admin") }}</small>
+                                <small class="text-muted">{{ request.session.get("role", "Admin") }}{% if request.session.get("tenant_plan_name") %} - {{ request.session.get("tenant_plan_name") }} Plan{% endif %}</small>
                             </li>
 
                             <li>

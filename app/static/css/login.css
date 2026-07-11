@@ -12,7 +12,7 @@
 body{
     background:linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
     min-height:100vh;
-    overflow:hidden;
+    overflow:auto;
 }
 
 .login-page{
@@ -50,6 +50,18 @@ body{
     margin-bottom:30px;
     backdrop-filter:blur(10px);
     box-shadow:0 15px 35px rgba(0,0,0,.25);
+}
+
+.tenant-login-left{
+    background-size:cover;
+    background-position:center;
+}
+
+.tenant-login-logo img{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    object-fit:cover;
 }
 
 .brand h1{
@@ -261,11 +273,202 @@ body{
     font-size:14px;
 }
 
+.switch-company-link{
+    margin-top:18px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    color:#2563eb;
+    text-decoration:none;
+    font-weight:700;
+}
+
+.switch-company-link:hover{
+    text-decoration:underline;
+}
+
+.tenant-entry-page{
+    min-height:100vh;
+    display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(420px,.9fr);
+    color:#fff;
+    background:
+        linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,64,175,.9)),
+        radial-gradient(circle at 12% 18%,rgba(34,197,94,.28),transparent 32%),
+        radial-gradient(circle at 85% 15%,rgba(250,204,21,.2),transparent 30%);
+}
+
+.tenant-entry-hero{
+    padding:70px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.tenant-brand-mark{
+    width:92px;
+    height:92px;
+    border-radius:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:38px;
+    background:rgba(255,255,255,.14);
+    box-shadow:0 24px 60px rgba(0,0,0,.28);
+    backdrop-filter:blur(14px);
+    margin-bottom:28px;
+}
+
+.tenant-kicker,
+.tenant-card-label,
+.tenant-info-box span{
+    color:#fde68a;
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:1.8px;
+    text-transform:uppercase;
+}
+
+.tenant-entry-hero h1{
+    max-width:780px;
+    margin:12px 0 16px;
+    font-size:52px;
+    line-height:1.08;
+    font-weight:850;
+}
+
+.tenant-entry-hero p{
+    max-width:720px;
+    color:#dbeafe;
+    font-size:18px;
+    line-height:1.7;
+}
+
+.tenant-feature-grid{
+    max-width:900px;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
+    margin-top:34px;
+}
+
+.tenant-feature-grid div,
+.tenant-info-box{
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:14px;
+    padding:18px;
+    background:rgba(255,255,255,.1);
+    backdrop-filter:blur(14px);
+}
+
+.tenant-feature-grid i{
+    color:#67e8f9;
+    font-size:24px;
+    margin-bottom:12px;
+}
+
+.tenant-feature-grid strong,
+.tenant-feature-grid span,
+.tenant-info-box strong,
+.tenant-info-box p{
+    display:block;
+}
+
+.tenant-feature-grid strong{
+    margin-bottom:6px;
+    font-size:15px;
+}
+
+.tenant-feature-grid span,
+.tenant-info-box p{
+    color:#dbeafe;
+    font-size:13px;
+    line-height:1.55;
+}
+
+.tenant-entry-panel{
+    padding:54px 48px;
+    background:#f8fafc;
+    color:#0f172a;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:18px;
+}
+
+.tenant-entry-card{
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    background:#fff;
+    padding:34px;
+    box-shadow:0 24px 60px rgba(15,23,42,.14);
+}
+
+.tenant-entry-card .tenant-card-label{
+    color:#2563eb;
+}
+
+.tenant-entry-card h2{
+    margin:8px 0;
+    font-size:30px;
+    font-weight:850;
+}
+
+.tenant-entry-card p{
+    color:#64748b;
+    margin-bottom:24px;
+}
+
+.tenant-info-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+}
+
+.tenant-info-box{
+    border-color:#e2e8f0;
+    background:#fff;
+    color:#0f172a;
+    box-shadow:0 12px 30px rgba(15,23,42,.08);
+}
+
+.tenant-info-box span{
+    color:#2563eb;
+}
+
+.tenant-info-box strong{
+    margin:10px 0 6px;
+    color:#0f172a;
+}
+
+.tenant-info-box p{
+    color:#64748b;
+    margin:0 0 10px;
+}
+
 /* ===========================
    RESPONSIVE
 =========================== */
 
 @media(max-width:1000px){
+    .tenant-entry-page{
+        grid-template-columns:1fr;
+    }
+
+    .tenant-entry-hero,
+    .tenant-entry-panel{
+        padding:36px 24px;
+    }
+
+    .tenant-entry-hero h1{
+        font-size:38px;
+    }
+
+    .tenant-feature-grid,
+    .tenant-info-grid{
+        grid-template-columns:1fr;
+    }
 
     .login-left{
         display:none;

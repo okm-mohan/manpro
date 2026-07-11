@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Industrial ERP Cloud - Company Access</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/css/company_entry.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+    >
+</head>
+
+<body>
+
+<div class="company-entry-page">
+
+    <!-- =========================
+         TOP HEADER
+    ========================== -->
+    <header class="top-header">
+
+        <div class="brand-section">
+
+            <div class="brand-logo">
+                <i class="fa-solid fa-industry"></i>
+            </div>
+
+            <div class="brand-content">
+                <h1>
+                    Industrial <span>ERP</span> Cloud
+                </h1>
+
+                <p>
+                    Powering Smarter Manufacturing
+                </p>
+            </div>
+
+        </div>
+
+        <div class="security-badge">
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <span>
+                Enterprise Grade • Secure • Scalable
+            </span>
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+    <main class="entry-main">
+
+        <section class="entry-card">
+
+            <!-- LEFT COMPANY ENTRY PANEL -->
+            <div class="entry-form-panel">
+
+                <div class="form-content">
+
+                    <div class="company-icon">
+                        <i class="fa-solid fa-building"></i>
+                    </div>
+
+                    <h2>
+                        Welcome to Industrial ERP Cloud
+                    </h2>
+
+                    <p class="form-subtitle">
+                        Enter your company code to continue
+                    </p>
+
+
+                    <form
+                        action="/select-company"
+                        method="post"
+                        id="companyEntryForm"
+                    >
+
+                        {% if error %}
+                        <div class="company-error" role="alert">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+
+                            <span>{{ error }}</span>
+                        </div>
+                        {% endif %}
+
+
+                        <div class="input-group">
+
+                            <label for="company_code">
+                                Company Code / Workspace ID
+                            </label>
+
+                            <div class="input-box">
+
+                                <i class="fa-regular fa-building"></i>
+
+                                <input
+                                    type="text"
+                                    id="company_code"
+                                    name="company_code"
+                                    placeholder="e.g. SRIDHEEPAM"
+                                    maxlength="50"
+                                    autocomplete="organization"
+                                    autocapitalize="characters"
+                                    required
+                                    autofocus
+                                >
+
+                                <i
+                                    class="fa-solid fa-circle-check valid-icon"
+                                    id="validIcon"
+                                ></i>
+
+                            </div>
+
+                            <small class="input-message" id="inputMessage"></small>
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            class="continue-btn"
+                            id="continueButton"
+                        >
+
+                            <span class="button-normal">
+                                <i class="fa-solid fa-arrow-right"></i>
+                                Continue
+                            </span>
+
+                            <span class="button-loading">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                Checking Company...
+                            </span>
+
+                        </button>
+
+                    </form>
+
+
+                    <div class="form-divider"></div>
+
+
+                    <a href="#" class="help-link">
+
+                        <span class="help-icon">
+                            <i class="fa-solid fa-question"></i>
+                        </span>
+
+                        Need help finding your company code?
+
+                    </a>
+
+
+                    <div class="redirect-note">
+
+                        <i class="fa-solid fa-lock"></i>
+
+                        <span>
+                            You will be redirected to your company login page.
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RIGHT INFORMATION PANEL -->
+            <div class="information-panel">
+
+                <!-- ERP DASHBOARD ILLUSTRATION -->
+                <div class="dashboard-illustration">
+
+                    <div class="dashboard-window">
+
+                        <div class="dashboard-sidebar">
+
+                            <div class="sidebar-logo">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+
+                            <span class="sidebar-item active"></span>
+                            <span class="sidebar-item"></span>
+                            <span class="sidebar-item"></span>
+                            <span class="sidebar-item"></span>
+
+                        </div>
+
+
+                        <div class="dashboard-content">
+
+                            <div class="dashboard-title-row">
+                                <span class="dashboard-title"></span>
+                                <span class="dashboard-action"></span>
+                            </div>
+
+                            <div class="chart-section">
+
+                                <div class="line-chart">
+                                    <span class="chart-line line-one"></span>
+                                    <span class="chart-line line-two"></span>
+                                    <span class="chart-line line-three"></span>
+                                    <span class="chart-line line-four"></span>
+                                </div>
+
+                                <div class="bar-chart">
+                                    <span style="height: 35%"></span>
+                                    <span style="height: 60%"></span>
+                                    <span style="height: 45%"></span>
+                                    <span style="height: 80%"></span>
+                                    <span style="height: 65%"></span>
+                                </div>
+
+                            </div>
+
+                            <div class="dashboard-cards">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="security-shield">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+
+                </div>
+
+
+                <!-- FEATURES -->
+                <div class="feature-list">
+
+                    <div class="feature-item">
+
+                        <div class="feature-icon secure-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+
+                        <div class="feature-content">
+                            <h3>Secure multi-tenant access</h3>
+
+                            <p>
+                                Your data is isolated, encrypted and always protected.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="feature-item">
+
+                        <div class="feature-icon company-feature-icon">
+                            <i class="fa-regular fa-building"></i>
+                        </div>
+
+                        <div class="feature-content">
+                            <h3>Company-branded workspace</h3>
+
+                            <p>
+                                Access your company's dedicated and branded ERP.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="feature-item">
+
+                        <div class="feature-icon role-icon">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+
+                        <div class="feature-content">
+                            <h3>Role-based login</h3>
+
+                            <p>
+                                Secure access based on your role and permissions.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="feature-item">
+
+                        <div class="feature-icon subscription-icon">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+
+                        <div class="feature-content">
+                            <h3>Subscription-aware features</h3>
+
+                            <p>
+                                Activate and use features included in your plan.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         FOOTER
+    ========================== -->
+    <footer class="page-footer">
+
+        <div class="footer-trust">
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <span>
+                Trusted by manufacturers worldwide
+            </span>
+        </div>
+
+        <div class="footer-copyright">
+            &copy; 2026 Industrial ERP Cloud. All rights reserved.
+        </div>
+
+    </footer>
+
+</div>
+
+
+<script src="/static/js/company_entry.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ManPro Plus - Company Access</title>
+    <link rel="stylesheet" href="/static/css/login.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+<body>
+
+<div class="tenant-entry-page">
+
+    <section class="tenant-entry-hero">
+        <div class="tenant-brand-mark">
+            <i class="fa-solid fa-industry"></i>
+        </div>
+
+        <span class="tenant-kicker">ManPro Plus SaaS</span>
+        <h1>The Complete AI-Powered Manufacturing ERP</h1>
+        <p>
+            Enter your company code to open your dedicated ERP workspace, company branding, users and private database.
+        </p>
+
+        <div class="tenant-feature-grid">
+            <div>
+                <i class="fa-solid fa-database"></i>
+                <strong>Separate Database</strong>
+                <span>Every company works inside its own ERP data space.</span>
+            </div>
+
+            <div>
+                <i class="fa-solid fa-chart-line"></i>
+                <strong>Plan Based Dashboard</strong>
+                <span>Dashboard and features can be aligned to package limits.</span>
+            </div>
+
+            <div>
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <strong>AI Ready</strong>
+                <span>Expense analyzer and ERP chatbot for smarter decisions.</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="tenant-entry-panel">
+        <div class="tenant-entry-card">
+            <span class="tenant-card-label">Company Access</span>
+            <h2>Open Your Workspace</h2>
+            <p>Use the company code provided for your organization.</p>
+
+            {% if error %}
+            <div class="login-error">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="/company-enter" method="post">
+                <div class="input-group">
+                    <label>Company Code</label>
+                    <div class="input-box">
+                        <i class="fa-solid fa-building-user"></i>
+                        <input type="text"
+                               name="company_code"
+                               placeholder="Example: MANPRO"
+                               autocomplete="off"
+                               required
+                               autofocus>
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    Continue
+                </button>
+            </form>
+        </div>
+
+        <div class="tenant-info-grid">
+            <div class="tenant-info-box">
+                <span>Offers</span>
+                {% for item in offers %}
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.message }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="tenant-info-box">
+                <span>Updates</span>
+                {% for item in updates %}
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.message }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+</div>
+
+</body>
+</html>

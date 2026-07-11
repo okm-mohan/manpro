@@ -4,12 +4,16 @@
 
         <div class="company-logo">
             <div class="logo-circle">
+                {% if request.session.get("tenant_company_logo_url") %}
+                <img src="{{ request.session.get("tenant_company_logo_url") }}" alt="{{ request.session.get("tenant_company_name", "ManPro Plus") }}">
+                {% else %}
                 <i class="bi bi-building-fill-gear"></i>
+                {% endif %}
             </div>
 
             <div class="company-name">
-                <span class="company-title">SRI DHEEPAM</span>
-                <span class="company-subtitle">Manufacturing ERP</span>
+                <span class="company-title">{{ request.session.get("tenant_company_name", "MANPRO PLUS") }}</span>
+                <span class="company-subtitle">{{ request.session.get("tenant_company_tagline", "AI Manufacturing ERP") }}</span>
             </div>
 
         </div>
