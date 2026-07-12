@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block page_title %}Expense Report{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/expenses.css">{% endblock %}
+
+{% block content %}
+<div class="expense-page report-page">
+    <section class="expense-hero report-hero">
+        <div><span class="expense-kicker">Expense Analytics</span><h1>Daily & Monthly Expense Report</h1><p>Review expense movement by date or month and compare spending across expense accounts.</p></div>
+        <div class="hero-actions"><a class="expense-report-button" href="/expenses"><i class="bi bi-plus-circle"></i> Expense Entry</a><button class="expense-print" onclick="window.print()"><i class="bi bi-printer"></i> Print</button></div>
+    </section>
+
+    <section class="expense-panel filter-panel no-print">
+        <form method="get" action="/expense-reports" class="expense-filter report-filter">
+            <div class="expense-field"><label>From</label><div class="expense-input"><i class="bi bi-calendar"></i><input type="date" name="from_date" value="{{ from_date }}"></div></div>
+            <div class="expense-field"><label>To</label><div class="expense-input"><i class="bi bi-calendar-check"></i><input type="date" name="to_date" value="{{ to_date }}"></div></div>
+            <div class="expense-field"><label>Group By</label><div class="expense-input"><i class="bi bi-bar-chart-steps"></i><select name="group_by"><option value="day" {% if group_by == 'day' %}selected{% endif %}>Daily</option><option value="month" {% if group_by == 'month' %}selected{% endif %}>Monthly</option></select></div></div>
+            <div class="expense-field wide"><label>Expense Account</label><div class="expense-input"><i class="bi bi-filter"></i><select name="category_id"><option value="0">All Expense Accounts</option>{% for category in categories %}<option value="{{ category.id }}" {% if category.id == category_id %}selected{% endif %}>{{ category.account_name }}{% if category.status != 'Active' %} (Inactive){% endif %}</option>{% endfor %}</select></div></div>
+            <button class="expense-secondary" type="submit"><i class="bi bi-search"></i> Generate</button>
+        </form>
+    </section>
+
+    <section class="expense-summary report-summary">
+        <article><span class="summary-icon period"><i class="bi bi-receipt"></i></span><div><small>Total Entries</small><strong>{{ total_entries }}</strong></div></article>
+        <article><span class="summary-icon month"><i class="bi bi-currency-rupee"></i></span><div><small>Total Expense</small><strong>&#8377; {{ "{:,.2f}".format(total_amount) }}</strong></div></article>
+        <article><span class="summary-icon today"><i class="bi bi-calculator"></i></span><div><small>Average Entry</small><strong>&#8377; {{ "{:,.2f}".format(total_amount / total_entries if total_entries else 0) }}</strong></div></article>
+    </section>
+
+    <section class="report-grid">
+        <div class="expense-panel">
+            <div class="panel-heading"><div><span>{{ 'Monthly' if group_by == 'month' else 'Daily' }}</span><h2>Expense Movement</h2></div></div>
+            <div class="expense-table-wrap"><table class="expense-table report-table"><thead><tr><th>Period</th><th>Entries</th><th>Total Expense</th></tr></thead><tbody>{% for row in rows %}<tr><td><strong>{{ row.period_label }}</strong></td><td>{{ row.entry_count }}</td><td class="report-amount">&#8377; {{ "{:,.2f}".format(row.total_amount or 0) }}</td></tr>{% else %}<tr><td colspan="3" class="empty-table">No expense data for this period.</td></tr>{% endfor %}</tbody></table></div>
+        </div>
+        <div class="expense-panel">
+            <div class="panel-heading"><div><span>Breakdown</span><h2>Expense Account Summary</h2></div></div>
+            <div class="expense-table-wrap"><table class="expense-table report-table"><thead><tr><th>Expense Account</th><th>Entries</th><th>Amount</th></tr></thead><tbody>{% for row in category_rows %}<tr><td><strong>{{ row.category_name }}</strong></td><td>{{ row.entry_count }}</td><td class="report-amount">&#8377; {{ "{:,.2f}".format(row.total_amount or 0) }}</td></tr>{% else %}<tr><td colspan="3" class="empty-table">No expense account data.</td></tr>{% endfor %}</tbody></table></div>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block page_title %}Expenses{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/expenses.css">
+{% endblock %}
+
+{% block content %}
+<div class="expense-page">
+    <section class="expense-hero">
+        <div>
+            <span class="expense-kicker">Expense Desk</span>
+            <h1>Daily Expense Management</h1>
+            <p>Record operating costs using the expense account heads managed in Accounts, with every entry synchronized to the ledger.</p>
+        </div>
+        <div class="hero-actions">
+            <a class="expense-report-button" href="/income-expenses"><i class="bi bi-journal-bookmark"></i> Manage Accounts</a>
+            <a class="expense-report-button" href="/expense-reports"><i class="bi bi-graph-down-arrow"></i> Daily / Monthly Report</a>
+        </div>
+    </section>
+
+    <section class="expense-summary">
+        <article><span class="summary-icon today"><i class="bi bi-calendar-day"></i></span><div><small>Today's Expense</small><strong>&#8377; {{ "{:,.2f}".format(today_total) }}</strong></div></article>
+        <article><span class="summary-icon month"><i class="bi bi-calendar3"></i></span><div><small>This Month</small><strong>&#8377; {{ "{:,.2f}".format(month_total) }}</strong></div></article>
+        <article><span class="summary-icon period"><i class="bi bi-funnel"></i></span><div><small>Selected Period</small><strong>&#8377; {{ "{:,.2f}".format(period_total) }}</strong></div></article>
+    </section>
+
+    <section class="expense-entry-grid">
+        <div class="expense-panel entry-panel">
+            <div class="panel-heading"><div><span>Transaction</span><h2>New Expense Entry</h2></div></div>
+            <form method="post" action="/expense/save" class="expense-form-grid">
+                <div class="expense-field"><label>Date</label><div class="expense-input"><i class="bi bi-calendar3"></i><input type="date" name="transaction_date" value="{{ today }}" required></div></div>
+                <div class="expense-field wide"><label>Expense Account</label><div class="expense-input"><i class="bi bi-journal-bookmark"></i><select name="category_id" required><option value="">Select Expense Account</option>{% for category in active_categories %}<option value="{{ category.id }}">{{ category.account_name }}</option>{% endfor %}</select></div></div>
+                <div class="expense-field"><label>Amount</label><div class="expense-input"><i class="bi bi-currency-rupee"></i><input type="number" name="amount" min="0.01" step="0.01" required></div></div>
+                <div class="expense-field"><label>Payment Mode</label><div class="expense-input"><i class="bi bi-wallet2"></i><select name="payment_mode"><option>Cash</option><option>Bank Transfer</option><option>UPI</option><option>Cheque</option><option>Card</option></select></div></div>
+                <div class="expense-field"><label>Reference</label><div class="expense-input"><i class="bi bi-hash"></i><input name="reference_no" placeholder="Bill / reference no."></div></div>
+                <div class="expense-field full"><label>Description</label><div class="expense-input"><i class="bi bi-pencil-square"></i><input name="narration" placeholder="Purpose of this expense"></div></div>
+                <button class="expense-primary save-expense" type="submit" {% if not active_categories %}disabled{% endif %}><i class="bi bi-save2"></i> Save Expense</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="expense-panel filter-panel">
+        <form method="get" action="/expenses" class="expense-filter">
+            <div class="expense-field"><label>From</label><div class="expense-input"><i class="bi bi-calendar"></i><input type="date" name="from_date" value="{{ from_date }}"></div></div>
+            <div class="expense-field"><label>To</label><div class="expense-input"><i class="bi bi-calendar-check"></i><input type="date" name="to_date" value="{{ to_date }}"></div></div>
+            <div class="expense-field wide"><label>Expense Account</label><div class="expense-input"><i class="bi bi-filter"></i><select name="category_id"><option value="0">All Expense Accounts</option>{% for category in categories %}<option value="{{ category.id }}" {% if category.id == category_id %}selected{% endif %}>{{ category.account_name }}{% if category.status != 'Active' %} (Inactive){% endif %}</option>{% endfor %}</select></div></div>
+            <button class="expense-secondary" type="submit"><i class="bi bi-search"></i> Search</button>
+        </form>
+    </section>
+
+    <section class="expense-panel">
+        <div class="panel-heading"><div><span>Register</span><h2>Expense Entries</h2></div><b>{{ expenses|length }} Records</b></div>
+        <div class="expense-table-wrap">
+            <table class="expense-table">
+                <thead><tr><th>Date</th><th>Expense Account</th><th>Mode</th><th>Reference</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for row in expenses %}
+                <tr>
+                    <td><form id="expense{{ row.id }}" method="post" action="/expense/update"></form><input form="expense{{ row.id }}" type="hidden" name="expense_id" value="{{ row.id }}"><input form="expense{{ row.id }}" type="date" name="transaction_date" value="{{ row.transaction_date }}" required></td>
+                    <td><select form="expense{{ row.id }}" name="category_id" required>{% for category in active_categories %}<option value="{{ category.id }}" {% if category.id == row.account_id %}selected{% endif %}>{{ category.account_name }}</option>{% endfor %}{% if row.account_id not in active_categories|map(attribute='id')|list %}<option value="{{ row.account_id }}" selected disabled>{{ row.category_name }} (Inactive)</option>{% endif %}</select></td>
+                    <td><select form="expense{{ row.id }}" name="payment_mode">{% for mode in ['Cash','Bank Transfer','UPI','Cheque','Card'] %}<option {% if mode == row.payment_mode %}selected{% endif %}>{{ mode }}</option>{% endfor %}</select></td>
+                    <td><input form="expense{{ row.id }}" name="reference_no" value="{{ row.reference_no or '' }}"></td>
+                    <td><input form="expense{{ row.id }}" name="narration" value="{{ row.narration or '' }}"></td>
+                    <td><input form="expense{{ row.id }}" class="amount-input" type="number" min="0.01" step="0.01" name="amount" value="{{ row.amount }}" required></td>
+                    <td class="expense-actions"><button form="expense{{ row.id }}" class="edit-button" title="Update"><i class="bi bi-check2"></i></button><form method="post" action="/expense/delete/{{ row.id }}" onsubmit="return confirm('Delete this expense?');"><button class="delete-button" title="Delete"><i class="bi bi-trash3"></i></button></form></td>
+                </tr>
+                {% else %}<tr><td colspan="7" class="empty-table">No expenses found for this period.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

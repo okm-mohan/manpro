@@ -3686,7 +3686,285 @@ def table_exists(db, table_name: str):
     ).scalar() > 0
 
 
+def get_expense_categories(db, include_inactive: bool = False):
+    status_filter = "" if include_inactive else "AND status='Active'"
+    return db.execute(text(f"""
+        SELECT id, account_name, status
+        FROM account_heads
+        WHERE account_type='Expense'
+        {status_filter}
+        ORDER BY account_name
+    """)).mappings().all()
+
+
+@app.get("/expenses")
+def expenses_page(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    category_id: int = 0,
+):
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+    today = date.today()
+    month_start = today.replace(day=1).strftime("%Y-%m-%d")
+    today_value = today.strftime("%Y-%m-%d")
+    db = SessionLocal()
+
+    categories = get_expense_categories(db, include_inactive=True)
+    active_categories = [row for row in categories if row.status == "Active"]
+    expenses = db.execute(text("""
+        SELECT atx.*, ah.account_name AS category_name
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE ah.account_type='Expense'
+          AND atx.transaction_date BETWEEN :from_date AND :to_date
+          AND (:category_id=0 OR atx.account_id=:category_id)
+        ORDER BY atx.transaction_date DESC, atx.id DESC
+    """), {
+        "from_date": from_date,
+        "to_date": to_date,
+        "category_id": category_id,
+    }).mappings().all()
+
+    period_total = sum(float(row.amount or 0) for row in expenses)
+    today_total = db.execute(text("""
+        SELECT COALESCE(SUM(atx.amount), 0)
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE ah.account_type='Expense'
+          AND atx.transaction_date=:today
+    """), {"today": today_value}).scalar() or 0
+    month_total = db.execute(text("""
+        SELECT COALESCE(SUM(atx.amount), 0)
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE ah.account_type='Expense'
+          AND atx.transaction_date BETWEEN :month_start AND :today
+    """), {"month_start": month_start, "today": today_value}).scalar() or 0
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="expenses.html",
+        context={
+            "request": request,
+            "categories": categories,
+            "active_categories": active_categories,
+            "expenses": expenses,
+            "from_date": from_date,
+            "to_date": to_date,
+            "category_id": category_id,
+            "today": today_value,
+            "today_total": float(today_total),
+            "month_total": float(month_total),
+            "period_total": period_total,
+        },
+    )
+
+
+@app.post("/expense/save")
+def expense_save(
+    transaction_date: str = Form(...),
+    category_id: int = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    narration: str = Form(""),
+):
+    if amount <= 0:
+        return RedirectResponse("/expenses", status_code=303)
+    db = SessionLocal()
+    db.execute(text("""
+        INSERT INTO account_transactions
+            (transaction_date, account_id, amount, payment_mode, reference_no, narration)
+        SELECT :transaction_date, id, :amount, :payment_mode, :reference_no, :narration
+        FROM account_heads
+        WHERE id=:category_id AND account_type='Expense' AND status='Active'
+    """), {
+        "transaction_date": transaction_date,
+        "category_id": category_id,
+        "amount": amount,
+        "payment_mode": payment_mode,
+        "reference_no": reference_no.strip(),
+        "narration": narration.strip(),
+    })
+    db.commit()
+    db.close()
+    return RedirectResponse("/expenses", status_code=303)
+
+
+@app.post("/expense/update")
+def expense_update(
+    expense_id: int = Form(...),
+    transaction_date: str = Form(...),
+    category_id: int = Form(...),
+    amount: float = Form(...),
+    payment_mode: str = Form("Cash"),
+    reference_no: str = Form(""),
+    narration: str = Form(""),
+):
+    if amount <= 0:
+        return RedirectResponse("/expenses", status_code=303)
+    db = SessionLocal()
+    db.execute(text("""
+        UPDATE account_transactions
+        SET transaction_date=:transaction_date,
+            account_id=:category_id,
+            amount=:amount,
+            payment_mode=:payment_mode,
+            reference_no=:reference_no,
+            narration=:narration
+        WHERE id=:expense_id
+          AND account_id IN (
+              SELECT id FROM account_heads WHERE account_type='Expense'
+          )
+          AND :category_id IN (
+              SELECT id FROM account_heads WHERE account_type='Expense' AND status='Active'
+          )
+    """), {
+        "expense_id": expense_id,
+        "transaction_date": transaction_date,
+        "category_id": category_id,
+        "amount": amount,
+        "payment_mode": payment_mode,
+        "reference_no": reference_no.strip(),
+        "narration": narration.strip(),
+    })
+    db.commit()
+    db.close()
+    return RedirectResponse("/expenses", status_code=303)
+
+
+@app.post("/expense/delete/{expense_id}")
+def expense_delete(expense_id: int):
+    db = SessionLocal()
+    db.execute(text("""
+        DELETE FROM account_transactions
+        WHERE id=:expense_id
+          AND account_id IN (
+              SELECT id FROM account_heads WHERE account_type='Expense'
+          )
+    """), {"expense_id": expense_id})
+    db.commit()
+    db.close()
+    return RedirectResponse("/expenses", status_code=303)
+
+
+@app.get("/expense-reports")
+def expense_reports(
+    request: Request,
+    from_date: str = "",
+    to_date: str = "",
+    category_id: int = 0,
+    group_by: str = "day",
+):
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+    group_by = "month" if group_by == "month" else "day"
+    period_expression = (
+        "DATE_FORMAT(atx.transaction_date, '%Y-%m')"
+        if group_by == "month"
+        else "DATE_FORMAT(atx.transaction_date, '%Y-%m-%d')"
+    )
+    db = SessionLocal()
+    categories = get_expense_categories(db, include_inactive=True)
+    rows = db.execute(text(f"""
+        SELECT {period_expression} AS period_label,
+               COUNT(*) AS entry_count,
+               SUM(atx.amount) AS total_amount
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE ah.account_type='Expense'
+          AND atx.transaction_date BETWEEN :from_date AND :to_date
+          AND (:category_id=0 OR atx.account_id=:category_id)
+        GROUP BY {period_expression}
+        ORDER BY period_label DESC
+    """), {
+        "from_date": from_date,
+        "to_date": to_date,
+        "category_id": category_id,
+    }).mappings().all()
+    category_rows = db.execute(text("""
+        SELECT ah.account_name AS category_name,
+               COUNT(*) AS entry_count,
+               SUM(atx.amount) AS total_amount
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE ah.account_type='Expense'
+          AND atx.transaction_date BETWEEN :from_date AND :to_date
+          AND (:category_id=0 OR atx.account_id=:category_id)
+        GROUP BY ah.id, ah.account_name
+        ORDER BY total_amount DESC
+    """), {
+        "from_date": from_date,
+        "to_date": to_date,
+        "category_id": category_id,
+    }).mappings().all()
+    total_amount = sum(float(row.total_amount or 0) for row in rows)
+    total_entries = sum(int(row.entry_count or 0) for row in rows)
+    db.close()
+    return templates.TemplateResponse(
+        request=request,
+        name="expense_reports.html",
+        context={
+            "request": request,
+            "categories": categories,
+            "rows": rows,
+            "category_rows": category_rows,
+            "from_date": from_date,
+            "to_date": to_date,
+            "category_id": category_id,
+            "group_by": group_by,
+            "total_amount": total_amount,
+            "total_entries": total_entries,
+        },
+    )
+
+
 @app.get("/accounts")
+def accounts_dashboard(request: Request):
+    today = date.today()
+    from_date = today.replace(day=1).strftime("%Y-%m-%d")
+    to_date = today.strftime("%Y-%m-%d")
+    db = SessionLocal()
+
+    summary = db.execute(text("""
+        SELECT
+            COALESCE(SUM(CASE WHEN ah.account_type='Income' THEN atx.amount ELSE 0 END), 0) AS income_total,
+            COALESCE(SUM(CASE WHEN ah.account_type='Expense' THEN atx.amount ELSE 0 END), 0) AS expense_total,
+            COUNT(atx.id) AS transaction_count
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        WHERE atx.transaction_date BETWEEN :from_date AND :to_date
+    """), {"from_date": from_date, "to_date": to_date}).mappings().first()
+
+    recent_transactions = db.execute(text("""
+        SELECT atx.transaction_date, atx.amount, atx.payment_mode,
+               atx.narration, ah.account_name, ah.account_type
+        FROM account_transactions atx
+        JOIN account_heads ah ON ah.id=atx.account_id
+        ORDER BY atx.transaction_date DESC, atx.id DESC
+        LIMIT 6
+    """)).mappings().all()
+    db.close()
+
+    income_total = float(summary.income_total or 0)
+    expense_total = float(summary.expense_total or 0)
+    return templates.TemplateResponse(
+        request=request,
+        name="accounts_dashboard.html",
+        context={
+            "request": request,
+            "income_total": income_total,
+            "expense_total": expense_total,
+            "net_total": income_total - expense_total,
+            "transaction_count": int(summary.transaction_count or 0),
+            "recent_transactions": recent_transactions,
+            "month_label": today.strftime("%B %Y"),
+        },
+    )
+
+
+@app.get("/income-expenses")
 def accounts_page(
     request: Request,
     from_date: str = "",
@@ -3785,7 +4063,7 @@ def account_head_save(
     db.commit()
     db.close()
 
-    return RedirectResponse("/accounts", status_code=303)
+    return RedirectResponse("/income-expenses", status_code=303)
 
 
 @app.post("/account-transaction/save")
@@ -3834,7 +4112,7 @@ def account_transaction_save(
     db.commit()
     db.close()
 
-    return RedirectResponse("/accounts", status_code=303)
+    return RedirectResponse("/income-expenses", status_code=303)
 
 
 @app.post("/account-transaction/update")
@@ -3876,7 +4154,7 @@ def account_transaction_update(
     db.commit()
     db.close()
 
-    return RedirectResponse("/accounts", status_code=303)
+    return RedirectResponse("/income-expenses", status_code=303)
 
 
 @app.get("/account-transaction/delete/{transaction_id}")
@@ -3895,7 +4173,7 @@ def account_transaction_delete(transaction_id: int):
     db.commit()
     db.close()
 
-    return RedirectResponse("/accounts", status_code=303)
+    return RedirectResponse("/income-expenses", status_code=303)
 
 
 @app.get("/accounts-ledger")
