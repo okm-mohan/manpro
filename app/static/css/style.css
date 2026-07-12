@@ -217,31 +217,21 @@ label{
 .company-name{
     display:flex;
     flex-direction:column;
+    flex:1;
+    min-width:0;
 }
 
 .company-title{
     color:#fff;
-    font-size:20px;
+    font-size:17px;
     font-weight:800;
-    letter-spacing:.8px;
-    line-height:1.1;
-    max-width:130px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+    letter-spacing:.35px;
+    line-height:1.25;
+    max-width:none;
+    white-space:normal;
+    overflow-wrap:anywhere;
 }
 
-.company-subtitle{
-    color:#9fb3d9;
-    font-size:12px;
-    text-transform:uppercase;
-    letter-spacing:2px;
-    margin-top:6px;
-    max-width:135px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
 .menu-list a.active{
     background: linear-gradient(90deg,#4f8cff,#6a5cff);
     color:#fff !important;
