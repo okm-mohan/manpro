@@ -38,6 +38,7 @@
 
         <!-- ================= Sidebar ================= -->
         {% include "sidebar.html" %}
+        <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close navigation"></button>
 
         <!-- ================= Main Wrapper ================= -->
         <div class="main-wrapper">
@@ -47,7 +48,7 @@
 
                 <div class="left-section">
 
-                    <button class="menu-btn" id="menuToggle">
+                    <button class="menu-btn" id="menuToggle" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">
                         <i class="bi bi-list"></i>
                     </button>
 

@@ -96,17 +96,18 @@
 
             </div>
 
+            <div class="sales-table-wrap">
             <table id="salesTable">
 
                 <thead>
                     <tr>
-                        <th>Product</th>
+                        <th class="product-column">Product</th>
                         <th>Qty</th>
                         <th>Rate</th>
                         <th>GST %</th>
                         <th>GST Amt</th>
                         <th>Total</th>
-                        <th></th>
+                        <th class="action-column"><span class="visually-hidden">Action</span></th>
                     </tr>
                 </thead>
 
@@ -134,6 +135,8 @@
                                    name="qty"
                                    value="{{ item.quantity }}"
                                    step="0.001"
+                                   min="0.001"
+                                   required
                                    onkeyup="calculateRow(this)"
                                    onchange="calculateRow(this)">
                         </td>
@@ -143,6 +146,8 @@
                                    name="rate"
                                    value="{{ item.price }}"
                                    step="0.01"
+                                   min="0"
+                                   required
                                    onkeyup="calculateRow(this)"
                                    onchange="calculateRow(this)">
                         </td>
@@ -150,13 +155,15 @@
                         <td>
                             <input type="number"
                                    name="gst_percent"
-                                   value="0"
+                                   value="{{ ((((item.total or 0) / ((item.quantity or 0) * (item.price or 0))) - 1) * 100)|round(2) if item.quantity and item.price else 0 }}"
+                                   step="0.01"
+                                   min="0"
                                    onkeyup="calculateRow(this)"
                                    onchange="calculateRow(this)">
                         </td>
 
                         <td>
-                            <input type="number" name="gst_amount" value="0" readonly>
+                            <input type="number" name="gst_amount" value="{{ ((item.total or 0) - ((item.quantity or 0) * (item.price or 0)))|round(2) }}" readonly>
                         </td>
 
                         <td>
@@ -165,7 +172,8 @@
 
                         <td>
                             <button type="button" class="btn-remove" onclick="removeRow(this)">
-                                X
+                                <i class="bi bi-trash3"></i>
+                                <span class="visually-hidden">Remove item</span>
                             </button>
                         </td>
 
@@ -176,28 +184,37 @@
                 </tbody>
 
             </table>
+            </div>
 
         </section>
 
-        <section class="sales-entry-panel totals-card">
-
-            <div class="total-row">
-                <span>Sub Total</span>
-                <span id="subTotal">&#8377; 0.00</span>
+        <section class="sales-entry-panel sales-summary-card">
+            <div class="sales-summary-heading">
+                <span class="sales-entry-panel-label">Invoice Summary</span>
+                <h3>Updated Total</h3>
+                <p><span id="itemCount">{{ items|length }} item{% if items|length != 1 %}s{% endif %}</span> in this invoice</p>
             </div>
 
-            <div class="total-row">
-                <span>GST Total</span>
-                <span id="gstTotal">&#8377; 0.00</span>
-            </div>
+            <div class="sales-total-grid">
+                <div class="total-row">
+                    <span>Sub Total</span>
+                    <strong id="subTotal">&#8377; 0.00</strong>
+                </div>
 
-            <div class="total-row grand">
-                <span>Grand Total</span>
-                <span id="grandTotal">&#8377; 0.00</span>
+                <div class="total-row">
+                    <span>GST Total</span>
+                    <strong id="gstTotal">&#8377; 0.00</strong>
+                </div>
+
+                <div class="total-row grand">
+                    <span>Grand Total</span>
+                    <strong id="grandTotal">&#8377; 0.00</strong>
+                </div>
             </div>
 
             <button type="submit" class="btn-save">
-                Update Sales
+                <i class="bi bi-check2-circle"></i>
+                <span>Update Sales</span>
             </button>
 
         </section>

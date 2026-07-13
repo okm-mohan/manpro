@@ -3,7 +3,15 @@
 // =========================================
 
 document.addEventListener("DOMContentLoaded", function () {
-    addRow();
+    const rows = document.querySelectorAll("#purchaseBody tr");
+
+    if (rows.length === 0) {
+        addRow();
+    } else {
+        rows.forEach((row) => calculateRow(row.querySelector('[name="qty"]'), false));
+        calculateTotals();
+        updateItemCount();
+    }
 });
 
 // =========================================
@@ -28,8 +36,11 @@ function addRow() {
                 <input
                     type="number"
                     name="qty"
-                    value="0"
+                    value=""
+                    placeholder="0.000"
                     step="0.001"
+                    min="0.001"
+                    required
                     onkeyup="calculateRow(this)"
                     onchange="calculateRow(this)"
                 >
@@ -39,8 +50,11 @@ function addRow() {
                 <input
                     type="number"
                     name="rate"
-                    value="0"
+                    value=""
+                    placeholder="0.00"
                     step="0.01"
+                    min="0"
+                    required
                     onkeyup="calculateRow(this)"
                     onchange="calculateRow(this)"
                 >
@@ -52,6 +66,7 @@ function addRow() {
                     name="gst_percent"
                     value="0"
                     step="0.01"
+                    min="0"
                     onkeyup="calculateRow(this)"
                     onchange="calculateRow(this)"
                 >
@@ -81,7 +96,8 @@ function addRow() {
                     class="btn-remove"
                     onclick="removeRow(this)"
                 >
-                    X
+                    <i class="bi bi-trash3"></i>
+                    <span class="visually-hidden">Remove item</span>
                 </button>
             </td>
 
@@ -89,6 +105,7 @@ function addRow() {
     `;
 
     tbody.insertAdjacentHTML("beforeend", row);
+    updateItemCount();
 }
 
 // =========================================
@@ -99,14 +116,21 @@ function removeRow(btn){
 
     btn.closest("tr").remove();
 
+    if (document.querySelectorAll("#purchaseBody tr").length === 0) {
+        addRow();
+    }
+
     calculateTotals();
+    updateItemCount();
 }
 
 // =========================================
 // CALCULATE ROW
 // =========================================
 
-function calculateRow(input){
+function calculateRow(input, updateTotals = true){
+
+    if (!input) return;
 
     let row = input.closest("tr");
 
@@ -141,7 +165,7 @@ function calculateRow(input){
         '[name="line_total"]'
     ).value = lineTotal.toFixed(2);
 
-    calculateTotals();
+    if (updateTotals) calculateTotals();
 }
 
 // =========================================
@@ -193,4 +217,13 @@ function calculateTotals(){
 
     document.getElementById("grandTotal").innerHTML =
         "\u20B9 " + grandTotal.toFixed(2);
+}
+
+function updateItemCount() {
+    const count = document.querySelectorAll("#purchaseBody tr").length;
+    const label = document.getElementById("itemCount");
+
+    if (label) {
+        label.textContent = `${count} item${count === 1 ? "" : "s"}`;
+    }
 }

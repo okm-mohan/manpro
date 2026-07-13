@@ -95,17 +95,18 @@
 
             </div>
 
+            <div class="sales-table-wrap">
             <table id="salesTable">
 
                 <thead>
                     <tr>
-                        <th>Product</th>
+                        <th class="product-column">Product</th>
                         <th>Qty</th>
                         <th>Rate</th>
                         <th>GST %</th>
                         <th>GST Amt</th>
                         <th>Total</th>
-                        <th></th>
+                        <th class="action-column"><span class="visually-hidden">Action</span></th>
                     </tr>
                 </thead>
 
@@ -113,30 +114,39 @@
                 </tbody>
 
             </table>
+            </div>
 
         </section>
 
-        <section class="sales-entry-panel totals-card">
-
-            <div class="total-row">
-                <span>Sub Total</span>
-                <span id="subTotal">&#8377; 0.00</span>
+        <section class="sales-entry-panel sales-summary-card">
+            <div class="sales-summary-heading">
+                <span class="sales-entry-panel-label">Invoice Summary</span>
+                <h3>Sales Total</h3>
+                <p><span id="itemCount">1 item</span> in this invoice</p>
             </div>
 
-            <div class="total-row">
-                <span>GST Total</span>
-                <span id="gstTotal">&#8377; 0.00</span>
-            </div>
+            <div class="sales-total-grid">
+                <div class="total-row">
+                    <span>Sub Total</span>
+                    <strong id="subTotal">&#8377; 0.00</strong>
+                </div>
 
-            <div class="total-row grand">
-                <span>Grand Total</span>
-                <span id="grandTotal">&#8377; 0.00</span>
+                <div class="total-row">
+                    <span>GST Total</span>
+                    <strong id="gstTotal">&#8377; 0.00</strong>
+                </div>
+
+                <div class="total-row grand">
+                    <span>Grand Total</span>
+                    <strong id="grandTotal">&#8377; 0.00</strong>
+                </div>
             </div>
 
             <button
                 type="submit"
                 class="btn-save">
-                Save Sales
+                <i class="bi bi-check2-circle"></i>
+                <span>Save Sales</span>
             </button>
 
         </section>
