@@ -178,6 +178,74 @@
 
 </div>
 
+<div class="voice-assistant" id="voiceAssistant">
+    <button class="voice-assistant-launcher" id="voiceAssistantLauncher" type="button"
+            aria-label="Open ManPro AI voice assistant" aria-expanded="false">
+        <span class="assistant-avatar" aria-hidden="true">
+            <span class="assistant-avatar-ring"></span>
+            <i class="bi bi-robot"></i>
+        </span>
+        <span class="assistant-launcher-label">Ask AI</span>
+        <span class="assistant-notification" id="assistantNotification" hidden>0</span>
+    </button>
+
+    <section class="voice-assistant-popup" id="voiceAssistantPopup" aria-label="ManPro AI assistant" hidden>
+        <header class="assistant-popup-header">
+            <div class="assistant-heading">
+                <span class="assistant-mini-avatar"><i class="bi bi-stars"></i></span>
+                <div>
+                    <strong>ManPro AI Assistant</strong>
+                    <span id="assistantStatus"><i></i> Ready to help</span>
+                </div>
+            </div>
+            <div class="assistant-header-actions">
+                <button type="button" id="assistantClear" aria-label="Start a new chat" title="New chat">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button type="button" id="assistantClose" aria-label="Close assistant"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </header>
+
+        <div class="assistant-insights" id="assistantInsights" hidden></div>
+
+        <div class="assistant-messages" id="assistantMessages" aria-live="polite">
+            <div class="assistant-message assistant-message-ai">
+                Hello! Ask me about sales, purchases, payments, stock, accounts, employees, attendance, reminders, or reports.
+            </div>
+        </div>
+
+        <div class="assistant-quick-questions" id="assistantQuickQuestions">
+            <button type="button">Give me today's business summary</button>
+            <button type="button">What warnings need my attention?</button>
+            <button type="button">Show customer outstanding</button>
+        </div>
+
+        <div class="assistant-language-row">
+            <label for="assistantLanguage">Voice language</label>
+            <select id="assistantLanguage">
+                <option value="en-IN">English (India)</option>
+                <option value="ta-IN">Tamil</option>
+            </select>
+            <button class="assistant-sound-toggle active" id="assistantSoundToggle" type="button"
+                    aria-label="Turn spoken replies off" title="Spoken replies on">
+                <i class="bi bi-volume-up-fill"></i>
+            </button>
+        </div>
+
+        <form class="assistant-composer" id="assistantForm">
+            <button class="assistant-mic" id="assistantMic" type="button" aria-label="Start voice input">
+                <i class="bi bi-mic-fill"></i>
+            </button>
+            <input id="assistantInput" type="text" autocomplete="off"
+                   placeholder="Ask or speak about your business..." aria-label="Ask the AI assistant">
+            <button class="assistant-send" type="submit" aria-label="Send question">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </form>
+        <div class="assistant-privacy"><i class="bi bi-shield-check"></i> Uses your current company data only</div>
+    </section>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
