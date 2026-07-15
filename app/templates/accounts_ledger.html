@@ -98,11 +98,11 @@ Accounts Ledger
 
         <div class="ledger-summary">
             <div>
-                <span>Income</span>
+                <span>Credits / Income</span>
                 <strong>&#8377; {{ "{:,.2f}".format(total_income or 0) }}</strong>
             </div>
             <div>
-                <span>Expense</span>
+                <span>Debits / Expenses</span>
                 <strong>&#8377; {{ "{:,.2f}".format(total_expense or 0) }}</strong>
             </div>
             <div>
@@ -121,8 +121,8 @@ Accounts Ledger
                         <th>Mode</th>
                         <th>Reference</th>
                         <th>Narration</th>
-                        <th>Income</th>
-                        <th>Expense</th>
+                        <th>Credit / Income</th>
+                        <th>Debit / Expense</th>
                     </tr>
                 </thead>
                 <tbody>

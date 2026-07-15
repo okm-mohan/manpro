@@ -3260,6 +3260,163 @@ def ensure_supplier_payments_table(db):
     return None
 
 
+def ensure_account_sync_schema(db):
+    transaction_columns = db.execute(text("SHOW COLUMNS FROM account_transactions")).mappings().all()
+    existing_columns = {column["Field"] for column in transaction_columns}
+
+    if "source_type" not in existing_columns:
+        db.execute(text("ALTER TABLE account_transactions ADD COLUMN source_type VARCHAR(50) NULL"))
+    if "source_id" not in existing_columns:
+        db.execute(text("ALTER TABLE account_transactions ADD COLUMN source_id INT NULL"))
+
+    source_index = db.execute(text("""
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema=DATABASE()
+          AND table_name='account_transactions'
+          AND index_name='uq_account_transaction_source'
+    """)).scalar()
+    if not source_index:
+        db.execute(text("""
+            ALTER TABLE account_transactions
+            ADD UNIQUE KEY uq_account_transaction_source (source_type, source_id)
+        """))
+
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS employee_advance_history
+        (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            transaction_date DATE NOT NULL,
+            transaction_type VARCHAR(20) NOT NULL,
+            amount DECIMAL(14,2) NOT NULL,
+            previous_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
+            new_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
+            notes VARCHAR(500),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_advance_employee (employee_id),
+            INDEX idx_advance_date (transaction_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """))
+
+
+def get_or_create_system_account(db, account_name: str, account_type: str):
+    account = db.execute(text("""
+        SELECT id, status
+        FROM account_heads
+        WHERE account_name=:account_name
+          AND account_type=:account_type
+        ORDER BY id
+        LIMIT 1
+    """), {
+        "account_name": account_name,
+        "account_type": account_type,
+    }).mappings().first()
+
+    if account:
+        if account.status != "Active":
+            db.execute(text("UPDATE account_heads SET status='Active' WHERE id=:id"), {"id": account.id})
+        return account.id
+
+    result = db.execute(text("""
+        INSERT INTO account_heads (account_name, account_type, status)
+        VALUES (:account_name, :account_type, 'Active')
+    """), {
+        "account_name": account_name,
+        "account_type": account_type,
+    })
+    return result.lastrowid
+
+
+def sync_account_transaction(
+    db,
+    *,
+    source_type: str,
+    source_id: int,
+    account_name: str,
+    account_type: str,
+    transaction_date,
+    amount: float,
+    payment_mode: str,
+    reference_no: str,
+    narration: str,
+):
+    ensure_account_sync_schema(db)
+    account_id = get_or_create_system_account(db, account_name, account_type)
+    db.execute(text("""
+        INSERT INTO account_transactions
+        (
+            transaction_date, account_id, amount, payment_mode,
+            reference_no, narration, source_type, source_id
+        )
+        VALUES
+        (
+            :transaction_date, :account_id, :amount, :payment_mode,
+            :reference_no, :narration, :source_type, :source_id
+        )
+        ON DUPLICATE KEY UPDATE
+            transaction_date=VALUES(transaction_date),
+            account_id=VALUES(account_id),
+            amount=VALUES(amount),
+            payment_mode=VALUES(payment_mode),
+            reference_no=VALUES(reference_no),
+            narration=VALUES(narration)
+    """), {
+        "transaction_date": transaction_date,
+        "account_id": account_id,
+        "amount": max(0, float(amount or 0)),
+        "payment_mode": payment_mode or "Cash",
+        "reference_no": reference_no or "",
+        "narration": narration,
+        "source_type": source_type,
+        "source_id": source_id,
+    })
+
+
+def sync_existing_payment_transactions(db):
+    ensure_account_sync_schema(db)
+
+    customer_receipts = db.execute(text("""
+        SELECT cp.*, c.customer_name
+        FROM customer_payments cp
+        LEFT JOIN customers c ON c.id=cp.customer_id
+    """)).mappings().all()
+    for receipt in customer_receipts:
+        sync_account_transaction(
+            db,
+            source_type="customer_payment",
+            source_id=receipt.id,
+            account_name="Customer Receipts",
+            account_type="Income",
+            transaction_date=receipt.payment_date,
+            amount=receipt.amount,
+            payment_mode=receipt.payment_mode,
+            reference_no=receipt.reference_no,
+            narration=f"Customer receipt - {receipt.customer_name or 'Customer'}{': ' + receipt.notes if receipt.notes else ''}",
+        )
+
+    supplier_payments = db.execute(text("""
+        SELECT sp.*, s.supplier_name
+        FROM supplier_payments sp
+        LEFT JOIN suppliers s ON s.id=sp.supplier_id
+    """)).mappings().all()
+    for payment in supplier_payments:
+        sync_account_transaction(
+            db,
+            source_type="supplier_payment",
+            source_id=payment.id,
+            account_name="Supplier Payments",
+            account_type="Expense",
+            transaction_date=payment.payment_date,
+            amount=payment.amount,
+            payment_mode=payment.payment_mode,
+            reference_no=payment.reference_no,
+            narration=f"Supplier payment - {payment.supplier_name or 'Supplier'}{': ' + payment.notes if payment.notes else ''}",
+        )
+
+    db.commit()
+
+
 @app.get("/supplier-outstanding-report")
 def supplier_outstanding_report(
     request: Request,
@@ -3417,7 +3574,7 @@ def supplier_payment_save(
     db = SessionLocal()
     ensure_supplier_payments_table(db)
 
-    db.execute(
+    result = db.execute(
         text("""
             INSERT INTO supplier_payments
             (
@@ -3446,6 +3603,23 @@ def supplier_payment_save(
             "reference_no": reference_no,
             "notes": notes,
         },
+    )
+
+    supplier = db.execute(
+        text("SELECT supplier_name FROM suppliers WHERE id=:supplier_id"),
+        {"supplier_id": supplier_id},
+    ).mappings().first()
+    sync_account_transaction(
+        db,
+        source_type="supplier_payment",
+        source_id=result.lastrowid,
+        account_name="Supplier Payments",
+        account_type="Expense",
+        transaction_date=payment_date,
+        amount=amount,
+        payment_mode=payment_mode,
+        reference_no=reference_no,
+        narration=f"Supplier payment - {supplier.supplier_name if supplier else 'Supplier'}{': ' + notes if notes else ''}",
     )
 
     db.commit()
@@ -3489,6 +3663,23 @@ def supplier_payment_update(
             "reference_no": reference_no,
             "notes": notes,
         },
+    )
+
+    supplier = db.execute(
+        text("SELECT supplier_name FROM suppliers WHERE id=:supplier_id"),
+        {"supplier_id": supplier_id},
+    ).mappings().first()
+    sync_account_transaction(
+        db,
+        source_type="supplier_payment",
+        source_id=payment_id,
+        account_name="Supplier Payments",
+        account_type="Expense",
+        transaction_date=payment_date,
+        amount=amount,
+        payment_mode=payment_mode,
+        reference_no=reference_no,
+        narration=f"Supplier payment - {supplier.supplier_name if supplier else 'Supplier'}{': ' + notes if notes else ''}",
     )
 
     db.commit()
@@ -3829,7 +4020,7 @@ async def payment_reminder_log(request: Request):
 
     db = SessionLocal()
     ensure_payment_reminder_table(db)
-    db.execute(
+    result = db.execute(
         text("""
             INSERT INTO payment_reminder_history
             (customer_id, channel, message, next_followup_date, status, created_by)
@@ -3843,6 +4034,7 @@ async def payment_reminder_log(request: Request):
             "created_by": request.session.get("full_name", request.session.get("user", "Administrator")),
         },
     )
+
     db.commit()
     db.close()
 
@@ -3861,7 +4053,7 @@ def customer_payment_save(
 
     db = SessionLocal()
 
-    db.execute(
+    result = db.execute(
         text("""
             INSERT INTO customer_payments
             (
@@ -3890,6 +4082,23 @@ def customer_payment_save(
             "reference_no": reference_no,
             "notes": notes,
         },
+    )
+
+    customer = db.execute(
+        text("SELECT customer_name FROM customers WHERE id=:customer_id"),
+        {"customer_id": customer_id},
+    ).mappings().first()
+    sync_account_transaction(
+        db,
+        source_type="customer_payment",
+        source_id=result.lastrowid,
+        account_name="Customer Receipts",
+        account_type="Income",
+        transaction_date=payment_date,
+        amount=amount,
+        payment_mode=payment_mode,
+        reference_no=reference_no,
+        narration=f"Customer receipt - {customer.customer_name if customer else 'Customer'}{': ' + notes if notes else ''}",
     )
 
     db.commit()
@@ -3932,6 +4141,23 @@ def customer_payment_update(
             "reference_no": reference_no,
             "notes": notes,
         },
+    )
+
+    customer = db.execute(
+        text("SELECT customer_name FROM customers WHERE id=:customer_id"),
+        {"customer_id": customer_id},
+    ).mappings().first()
+    sync_account_transaction(
+        db,
+        source_type="customer_payment",
+        source_id=payment_id,
+        account_name="Customer Receipts",
+        account_type="Income",
+        transaction_date=payment_date,
+        amount=amount,
+        payment_mode=payment_mode,
+        reference_no=reference_no,
+        narration=f"Customer receipt - {customer.customer_name if customer else 'Customer'}{': ' + notes if notes else ''}",
     )
 
     db.commit()
@@ -4204,6 +4430,7 @@ def accounts_dashboard(request: Request):
     from_date = today.replace(day=1).strftime("%Y-%m-%d")
     to_date = today.strftime("%Y-%m-%d")
     db = SessionLocal()
+    sync_existing_payment_transactions(db)
 
     summary = db.execute(text("""
         SELECT
@@ -4254,6 +4481,7 @@ def accounts_page(
     from_date, to_date = get_account_month_defaults(from_date, to_date)
 
     db = SessionLocal()
+    sync_existing_payment_transactions(db)
 
     heads = db.execute(text("""
         SELECT *
@@ -4466,6 +4694,7 @@ def accounts_ledger(
     from_date, to_date = get_account_month_defaults(from_date, to_date)
 
     db = SessionLocal()
+    sync_existing_payment_transactions(db)
 
     heads = db.execute(text("""
         SELECT *
@@ -5088,16 +5317,81 @@ def employee_advances(request: Request):
 def employee_advance_update(
     employee_id: int = Form(...),
     advance_amount: float = Form(0),
+    payment_mode: str = Form("Cash"),
 ):
     db = SessionLocal()
+    ensure_account_sync_schema(db)
+    employee = db.execute(text("""
+        SELECT employee_code, employee_name, advance_amount
+        FROM employees
+        WHERE id=:employee_id
+    """), {"employee_id": employee_id}).mappings().first()
+
+    if not employee:
+        db.close()
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    previous_balance = float(employee.advance_amount or 0)
+    new_balance = max(0, float(advance_amount or 0))
+    balance_change = round(new_balance - previous_balance, 2)
+
     db.execute(text("""
         UPDATE employees
         SET advance_amount=:advance_amount
         WHERE id=:employee_id
     """), {
         "employee_id": employee_id,
-        "advance_amount": max(0, advance_amount),
+        "advance_amount": new_balance,
     })
+
+    if balance_change:
+        transaction_type = "Given" if balance_change > 0 else "Recovered"
+        movement_amount = abs(balance_change)
+        history_result = db.execute(text("""
+            INSERT INTO employee_advance_history
+            (
+                employee_id, transaction_date, transaction_type, amount,
+                previous_balance, new_balance, notes
+            )
+            VALUES
+            (
+                :employee_id, :transaction_date, :transaction_type, :amount,
+                :previous_balance, :new_balance, :notes
+            )
+        """), {
+            "employee_id": employee_id,
+            "transaction_date": date.today(),
+            "transaction_type": transaction_type,
+            "amount": movement_amount,
+            "previous_balance": previous_balance,
+            "new_balance": new_balance,
+            "notes": f"Salary advance {transaction_type.lower()} to {employee.employee_name}",
+        })
+
+        if balance_change > 0:
+            account_name = "Salary Advances"
+            account_type = "Expense"
+            source_type = "salary_advance_given"
+            narration = f"Salary advance given - {employee.employee_name}"
+        else:
+            account_name = "Salary Advance Recovery"
+            account_type = "Income"
+            source_type = "salary_advance_recovery"
+            narration = f"Salary advance recovered - {employee.employee_name}"
+
+        sync_account_transaction(
+            db,
+            source_type=source_type,
+            source_id=history_result.lastrowid,
+            account_name=account_name,
+            account_type=account_type,
+            transaction_date=date.today(),
+            amount=movement_amount,
+            payment_mode=payment_mode,
+            reference_no=employee.employee_code or "",
+            narration=narration,
+        )
+
     db.commit()
     db.close()
     return RedirectResponse("/employee-advances", status_code=303)
@@ -5488,7 +5782,6 @@ def employee_attendance(request: Request, month: int = 0, year: int = 0, saved: 
             ],
         },
     )
-
 
 @app.get("/employee-attendance/summary")
 def employee_attendance_summary(request: Request, month: int = 0, year: int = 0):

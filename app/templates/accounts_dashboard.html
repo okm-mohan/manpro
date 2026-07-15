@@ -15,8 +15,8 @@
     </section>
 
     <section class="finance-summary">
-        <article><span class="finance-icon income"><i class="bi bi-arrow-down-left"></i></span><div><small>Monthly Income</small><strong>&#8377; {{ "{:,.2f}".format(income_total) }}</strong></div></article>
-        <article><span class="finance-icon expense"><i class="bi bi-arrow-up-right"></i></span><div><small>Monthly Expense</small><strong>&#8377; {{ "{:,.2f}".format(expense_total) }}</strong></div></article>
+        <article><span class="finance-icon income"><i class="bi bi-arrow-down-left"></i></span><div><small>Monthly Credits</small><strong>&#8377; {{ "{:,.2f}".format(income_total) }}</strong></div></article>
+        <article><span class="finance-icon expense"><i class="bi bi-arrow-up-right"></i></span><div><small>Monthly Debits / Expenses</small><strong>&#8377; {{ "{:,.2f}".format(expense_total) }}</strong></div></article>
         <article><span class="finance-icon balance"><i class="bi bi-wallet2"></i></span><div><small>Net Movement</small><strong>&#8377; {{ "{:,.2f}".format(net_total) }}</strong></div></article>
         <article><span class="finance-icon entries"><i class="bi bi-list-check"></i></span><div><small>Monthly Entries</small><strong>{{ transaction_count }}</strong></div></article>
     </section>
