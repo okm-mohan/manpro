@@ -1,0 +1,17 @@
+{% extends "platform_admin_base.html" %}
+{% block title %}Platform Overview | ManPro{% endblock %}
+{% block page_title %}Platform Overview{% endblock %}
+{% block content %}
+<section class="platform-welcome"><div><span>MANPRO SAAS COMMAND CENTRE</span><h1>Good to see you, {{ request.session.get('platform_admin_name','Super Admin') }}.</h1><p>Monitor customer growth, trials and platform activity from one private workspace.</p></div><a href="/trial-admin"><i class="bi bi-rocket-takeoff"></i> Review Trial Requests</a></section>
+<section class="platform-summary">
+    <article><i class="bi bi-buildings"></i><div><span>Total Companies</span><strong>{{ summary.get('total_companies',0) }}</strong><small>Registered workspaces</small></div></article>
+    <article><i class="bi bi-building-check"></i><div><span>Active Companies</span><strong>{{ summary.get('active_companies',0) }}</strong><small>Available for login</small></div></article>
+    <article><i class="bi bi-rocket-takeoff"></i><div><span>Active Trials</span><strong>{{ summary.get('active_trials',0) }}</strong><small>Currently evaluating</small></div></article>
+    <article><i class="bi bi-hourglass-split"></i><div><span>Pending Approval</span><strong>{{ summary.get('pending_trials',0) }}</strong><small>Require your review</small></div></article>
+    <article><i class="bi bi-calendar-x"></i><div><span>Expired Trials</span><strong>{{ summary.get('expired_trials',0) }}</strong><small>Awaiting conversion</small></div></article>
+</section>
+<div class="platform-dashboard-grid">
+    <section class="platform-panel" id="companies"><header><div><span>COMPANY DIRECTORY</span><h2>Recent Companies</h2></div><strong>{{ companies|length }} Shown</strong></header><div class="company-register"><table><thead><tr><th>Company</th><th>Plan</th><th>Subscription</th><th>Trial End</th><th>Database</th></tr></thead><tbody>{% for item in companies %}<tr><td><div class="platform-company"><b>{{ item.company_name[:1]|upper }}</b><span><strong>{{ item.company_name }}</strong><small>{{ item.company_code }}</small></span></div></td><td>{{ item.plan_name or 'Starter' }}</td><td><span class="platform-status {{ (item.subscription_status or item.status)|lower|replace(' ','-') }}">{{ item.subscription_status or item.status }}</span></td><td>{{ item.trial_end.strftime('%d-%m-%Y') if item.trial_end else '-' }}</td><td><code>{{ item.database_name }}</code></td></tr>{% else %}<tr><td colspan="5" class="platform-empty">No companies registered.</td></tr>{% endfor %}</tbody></table></div></section>
+    <section class="platform-panel pending-panel"><header><div><span>ACTION QUEUE</span><h2>Pending Trials</h2></div><a href="/trial-admin">View all</a></header>{% for item in pending %}<a class="pending-item" href="/trial-admin"><b>{{ item.company_name[:1]|upper }}</b><div><strong>{{ item.company_name }}</strong><small>{{ item.plan_name }} · {{ item.contact_name }}</small></div><i class="bi bi-chevron-right"></i></a>{% else %}<div class="platform-empty"><i class="bi bi-check2-circle"></i>No trials waiting for approval.</div>{% endfor %}</section>
+</div>
+{% endblock %}

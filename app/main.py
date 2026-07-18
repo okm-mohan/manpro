@@ -64,6 +64,8 @@ class TenantDatabaseMiddleware(BaseHTTPMiddleware):
         public_paths = (
             "/company-enter",
             "/trial/",
+            "/manpro-admin",
+            "/trial-admin",
             "/login",
             "/switch-company",
             "/static/",
@@ -1025,10 +1027,127 @@ async def trial_register(request: Request):
     )
 
 
+@app.get("/manpro-admin/login")
+async def platform_admin_login_page(request: Request):
+    if platform_admin_logged_in(request):
+        return RedirectResponse("/manpro-admin", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_admin_login.html",
+        context={"request": request, "error": ""},
+    )
+
+
+@app.post("/manpro-admin/login")
+async def platform_admin_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    db = MasterSessionLocal()
+    try:
+        ensure_platform_admin_schema(db)
+        admin = db.execute(text("""
+            SELECT * FROM saas_admins
+            WHERE username=:username AND status='Active'
+            LIMIT 1
+        """), {"username": username.strip()}).mappings().first()
+        if not admin or not password_matches(password, admin["password_hash"]):
+            return templates.TemplateResponse(
+                request=request,
+                name="platform_admin_login.html",
+                context={"request": request, "error": "Invalid platform administrator credentials."},
+                status_code=401,
+            )
+
+        if not str(admin["password_hash"]).startswith(("$2a$", "$2b$", "$2y$")):
+            db.execute(text("""
+                UPDATE saas_admins SET password_hash=:password_hash WHERE id=:admin_id
+            """), {"password_hash": pwd_context.hash(password), "admin_id": admin["id"]})
+        db.execute(text("UPDATE saas_admins SET last_login_at=NOW() WHERE id=:admin_id"), {"admin_id": admin["id"]})
+        db.commit()
+
+        request.session.clear()
+        request.session["platform_admin_id"] = admin["id"]
+        request.session["platform_admin_username"] = admin["username"]
+        request.session["platform_admin_name"] = admin["full_name"] or admin["username"]
+        request.session["platform_admin_role"] = "PlatformSuperAdmin"
+        request.session["remember_me"] = False
+        log_platform_admin_action(db, request, "platform_login", "Platform administrator signed in.")
+        db.commit()
+        return RedirectResponse("/manpro-admin", status_code=303)
+    finally:
+        db.close()
+
+
+@app.get("/manpro-admin/logout")
+async def platform_admin_logout(request: Request):
+    if platform_admin_logged_in(request):
+        db = MasterSessionLocal()
+        try:
+            ensure_platform_admin_schema(db)
+            log_platform_admin_action(db, request, "platform_logout", "Platform administrator signed out.")
+            db.commit()
+        finally:
+            db.close()
+    request.session.clear()
+    return RedirectResponse("/manpro-admin/login", status_code=303)
+
+
+@app.get("/manpro-admin")
+async def platform_admin_dashboard(request: Request):
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
+
+    db = MasterSessionLocal()
+    try:
+        ensure_platform_admin_schema(db)
+        ensure_trial_requests_table(db)
+        ensure_saas_subscription_columns(db)
+        summary = db.execute(text("""
+            SELECT
+                (SELECT COUNT(*) FROM saas_companies) AS total_companies,
+                (SELECT COUNT(*) FROM saas_companies WHERE status='Active') AS active_companies,
+                (SELECT COUNT(*) FROM saas_companies WHERE subscription_status='Active Trial') AS active_trials,
+                (SELECT COUNT(*) FROM saas_trial_requests WHERE status='Pending Provisioning') AS pending_trials,
+                (SELECT COUNT(*) FROM saas_companies WHERE trial_end IS NOT NULL AND trial_end < CURDATE()) AS expired_trials
+        """)).mappings().first()
+        companies = db.execute(text("""
+            SELECT company_code, company_name, plan_name, status, subscription_status,
+                   trial_start, trial_end, database_name, created_at
+            FROM saas_companies
+            ORDER BY created_at DESC, id DESC
+            LIMIT 8
+        """)).mappings().all()
+        pending = db.execute(text("""
+            SELECT id, company_code, company_name, contact_name, plan_name, created_at
+            FROM saas_trial_requests
+            WHERE status='Pending Provisioning'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 5
+        """)).mappings().all()
+    finally:
+        db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_admin_dashboard.html",
+        context={
+            "request": request,
+            "summary": dict(summary or {}),
+            "companies": [dict(row) for row in companies],
+            "pending": [dict(row) for row in pending],
+            "platform_page": "dashboard",
+        },
+    )
+
+
 @app.get("/trial-admin")
 async def trial_admin(request: Request, status: str = "all"):
-    if not is_superadmin_user(request):
-        return RedirectResponse("/dashboard", status_code=303)
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
 
     db = MasterSessionLocal()
     try:
@@ -1062,6 +1181,7 @@ async def trial_admin(request: Request, status: str = "all"):
             "message": request.query_params.get("message", ""),
             "error": request.query_params.get("error", ""),
             "template_database": os.getenv("TENANT_TEMPLATE_DATABASE", "sridheepam"),
+            "platform_page": "trials",
         },
     )
 
@@ -1072,8 +1192,9 @@ async def trial_admin_approve(
     request_id: int,
     database_name: str = Form(""),
 ):
-    if not is_superadmin_user(request):
-        return RedirectResponse("/dashboard", status_code=303)
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
 
     db = MasterSessionLocal()
     try:
@@ -1139,6 +1260,13 @@ async def trial_admin_approve(
             WHERE id=:request_id
         """), {"request_id": request_id, "trial_start": trial_start, "trial_end": trial_end})
         db.commit()
+        log_platform_admin_action(
+            db,
+            request,
+            "trial_activated",
+            f"Activated {trial['company_code']} with database {provisioned_database}.",
+        )
+        db.commit()
     except Exception as error:
         db.rollback()
         db.close()
@@ -1157,8 +1285,9 @@ async def trial_admin_approve(
 
 @app.post("/trial-admin/{request_id}/reject")
 async def trial_admin_reject(request: Request, request_id: int):
-    if not is_superadmin_user(request):
-        return RedirectResponse("/dashboard", status_code=303)
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
 
     db = MasterSessionLocal()
     try:
@@ -1167,6 +1296,8 @@ async def trial_admin_reject(request: Request, request_id: int):
             SET status='Rejected'
             WHERE id=:request_id AND status='Pending Provisioning'
         """), {"request_id": request_id})
+        db.commit()
+        log_platform_admin_action(db, request, "trial_rejected", f"Rejected trial request {request_id}.")
         db.commit()
         if not result.rowcount:
             raise ValueError("Only pending requests can be rejected.")
@@ -4453,6 +4584,89 @@ def ensure_saas_subscription_columns(db):
         if column not in existing:
             db.execute(text(f"ALTER TABLE saas_companies ADD COLUMN `{column}` {definition}"))
     db.commit()
+
+
+def ensure_platform_admin_schema(db):
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS saas_admins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) NOT NULL UNIQUE,
+            full_name VARCHAR(150) NULL,
+            email VARCHAR(180) NULL,
+            password_hash VARCHAR(500) NOT NULL,
+            role VARCHAR(40) NOT NULL DEFAULT 'PlatformSuperAdmin',
+            status VARCHAR(20) NOT NULL DEFAULT 'Active',
+            last_login_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    """))
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS saas_admin_audit_log (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            admin_id INT NULL,
+            action VARCHAR(120) NOT NULL,
+            details TEXT NULL,
+            ip_address VARCHAR(80) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_admin_audit_admin (admin_id),
+            INDEX idx_admin_audit_created (created_at)
+        )
+    """))
+    db.commit()
+
+    admin_count = db.execute(text("SELECT COUNT(*) FROM saas_admins")).scalar() or 0
+    if admin_count:
+        return
+
+    source = None
+    try:
+        source = db.execute(text("""
+            SELECT username, full_name, password
+            FROM sridheepam.users
+            WHERE LOWER(REPLACE(REPLACE(REPLACE(role,' ',''),'_',''),'-',''))='superadmin'
+            AND status='Active'
+            LIMIT 1
+        """)).mappings().first()
+    except Exception:
+        source = None
+
+    if source:
+        db.execute(text("""
+            INSERT INTO saas_admins
+                (username, full_name, password_hash, role, status)
+            VALUES
+                (:username, :full_name, :password_hash, 'PlatformSuperAdmin', 'Active')
+        """), {
+            "username": source["username"],
+            "full_name": source["full_name"] or "ManPro Super Admin",
+            "password_hash": source["password"],
+        })
+        db.commit()
+
+
+def platform_admin_logged_in(request):
+    return bool(request.session.get("platform_admin_id") and request.session.get("platform_admin_role") == "PlatformSuperAdmin")
+
+
+def platform_admin_redirect(request):
+    if not platform_admin_logged_in(request):
+        return RedirectResponse("/manpro-admin/login", status_code=303)
+    return None
+
+
+def log_platform_admin_action(db, request, action, details=""):
+    forwarded = request.headers.get("x-forwarded-for", "")
+    ip_address = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "")
+    db.execute(text("""
+        INSERT INTO saas_admin_audit_log (admin_id, action, details, ip_address)
+        VALUES (:admin_id, :action, :details, :ip_address)
+    """), {
+        "admin_id": request.session.get("platform_admin_id"),
+        "action": action,
+        "details": details,
+        "ip_address": ip_address,
+    })
 
 
 def provision_trial_workspace(master_db, trial_request, requested_database_name=""):

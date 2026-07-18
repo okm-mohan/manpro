@@ -1,0 +1,4 @@
+.env
+database_exports/
+__pycache__/
+*.pyc
