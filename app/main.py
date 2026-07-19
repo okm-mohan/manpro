@@ -50,7 +50,10 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt only accepts the first 72 bytes of a password.  bcrypt_sha256
+# pre-hashes the password, avoiding that limit while retaining bcrypt hashes
+# already stored for existing users.
+pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -148,7 +151,7 @@ def hash_password(password):
 
 def password_matches(plain_password, stored_password):
     stored_password = str(stored_password or "")
-    if stored_password.startswith(("$2a$", "$2b$", "$2y$")):
+    if stored_password.startswith(("$2a$", "$2b$", "$2y$", "$bcrypt-sha256$")):
         try:
             return pwd_context.verify(plain_password, stored_password)
         except Exception:
