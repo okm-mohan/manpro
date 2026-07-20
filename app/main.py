@@ -1495,9 +1495,8 @@ def company(request: Request):
 
 @app.get("/upgrade-plan")
 def upgrade_plan(request: Request):
-    blocked = admin_only_redirect(request)
-    if blocked:
-        return blocked
+    if not request.session.get("user"):
+        return RedirectResponse("/login", status_code=303)
 
     company_id = request.session.get("tenant_company_id")
     if not company_id:
@@ -1517,6 +1516,8 @@ def upgrade_plan(request: Request):
 
     if not company:
         return RedirectResponse("/company-enter", status_code=303)
+    if str(company.get("plan_name") or "").strip().lower() == "enterprise":
+        return RedirectResponse("/dashboard", status_code=303)
 
     plans = [
         {
