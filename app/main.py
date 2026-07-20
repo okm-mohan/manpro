@@ -1521,17 +1521,21 @@ def upgrade_plan(request: Request):
 
     plans = [
         {
-            "name": "Starter", "price": 2999, "users": "Up to 3 users",
+            "name": "Starter", "price": 999, "users": "Up to 10 users",
             "features": ["Purchase, sales and stock", "GST reports", "Cloud backup"],
         },
         {
-            "name": "Business", "price": 5999, "users": "Up to 10 users",
+            "name": "Professional", "price": 2999, "users": "Up to 50 users",
             "features": ["Everything in Starter", "Accounts and HR", "Advanced reports", "Priority support"],
             "popular": True,
         },
         {
-            "name": "Professional", "price": 9999, "users": "Expanded user access",
+            "name": "Business", "price": 4999, "users": "Up to 100 users",
             "features": ["Everything in Business", "Production workflows", "AI tools and automation", "Assisted implementation"],
+        },
+        {
+            "name": "Enterprise", "price": None, "users": "Unlimited users",
+            "features": ["Everything in Business", "Custom workflows", "Dedicated support", "Custom implementation"],
         },
     ]
     return templates.TemplateResponse(

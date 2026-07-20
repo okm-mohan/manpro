@@ -27,7 +27,7 @@
     <article class="subscription-plan {% if plan.name == (company.plan_name or 'Starter') %}current{% endif %} {% if plan.popular %}popular{% endif %}">
         {% if plan.popular %}<b>Most popular</b>{% endif %}
         <span class="plan-label">{{ plan.name }}</span>
-        <div class="plan-price"><sup>&#8377;</sup><strong>{{ '{:,.0f}'.format(plan.price) }}</strong><span>/ month</span></div>
+        <div class="plan-price">{% if plan.price is not none %}<sup>&#8377;</sup><strong>{{ '{:,.0f}'.format(plan.price) }}</strong><span>/ month</span>{% else %}<strong>Custom</strong><span> pricing</span>{% endif %}</div>
         <p class="plan-users"><i class="bi bi-people"></i> {{ plan.users }}</p>
         <ul>{% for feature in plan.features %}<li><i class="bi bi-check2-circle"></i>{{ feature }}</li>{% endfor %}</ul>
         {% if plan.name == (company.plan_name or 'Starter') %}
