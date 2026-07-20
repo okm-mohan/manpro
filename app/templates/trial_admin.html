@@ -4,8 +4,8 @@
 {% block extra_css %}<link rel="stylesheet" href="/static/css/trial_admin.css">{% endblock %}
 {% block content %}
 <section class="trial-admin-hero">
-    <div><span>SAAS CONTROL CENTRE</span><h1>Trial Provisioning</h1><p>Review new customers, create isolated ERP workspaces and start trial access.</p></div>
-    <div class="template-badge"><small>Workspace template</small><strong>{{ template_database }}</strong></div>
+    <div><span>SAAS CONTROL CENTRE</span><h1>Trial Provisioning</h1><p>Review new customers, activate the manually prepared ERP workspace and start trial access.</p></div>
+    <div class="template-badge"><small>Database setup</small><strong>Prepare in GoDaddy first</strong></div>
 </section>
 
 {% if message %}<div class="admin-alert success"><i class="bi bi-check-circle-fill"></i><span>{{ message }}</span></div>{% endif %}
@@ -33,9 +33,9 @@
             <div class="request-status"><span class="status-pill {{ item.status|lower|replace(' ', '-') }}">{{ item.status }}</span></div>
             {% if item.status == 'Pending Provisioning' %}
             <div class="request-actions">
-                <form method="post" action="/trial-admin/{{ item.id }}/approve" class="approve-form" onsubmit="return confirm('Create and activate the workspace for {{ item.company_name|e }}?');">
+                <form method="post" action="/trial-admin/{{ item.id }}/approve" class="approve-form" onsubmit="return confirm('Activate the prepared workspace for {{ item.company_name|e }}?');">
                     <label>Database name</label>
-                    <div><input name="database_name" value="manpro_{{ item.company_code|lower }}" pattern="[a-z0-9_]{3,64}" required><button type="submit"><i class="bi bi-rocket-takeoff"></i> Approve &amp; Create</button></div>
+                    <div><input name="database_name" value="manpro_{{ item.company_code|lower }}" pattern="[a-z0-9_]{3,64}" required><button type="submit"><i class="bi bi-rocket-takeoff"></i> Approve &amp; Activate</button></div>
                 </form>
                 <form method="post" action="/trial-admin/{{ item.id }}/reject" onsubmit="return confirm('Reject this trial request?');"><button class="reject-button" type="submit"><i class="bi bi-x-lg"></i> Reject</button></form>
             </div>

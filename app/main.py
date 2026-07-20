@@ -4694,35 +4694,19 @@ def log_platform_admin_action(db, request, action, details=""):
 
 
 def provision_trial_workspace(master_db, trial_request, requested_database_name=""):
-    template_database = os.getenv("TENANT_TEMPLATE_DATABASE", "sridheepam").strip()
     generated_name = f"manpro_{trial_request['company_code'].lower()}"
     database_name = (requested_database_name or generated_name).strip().lower()
 
     if not re.fullmatch(r"[a-z0-9_]{3,64}", database_name):
         raise ValueError("Database name may contain only lowercase letters, numbers and underscores.")
-    if not re.fullmatch(r"[A-Za-z0-9_]{1,64}", template_database):
-        raise ValueError("Tenant template database configuration is invalid.")
-
-    template_exists = master_db.execute(text("""
-        SELECT schema_name FROM information_schema.schemata WHERE schema_name=:schema_name
-    """), {"schema_name": template_database}).first()
-    if not template_exists:
-        raise ValueError(f"Tenant template database '{template_database}' was not found.")
 
     target_exists = master_db.execute(text("""
         SELECT schema_name FROM information_schema.schemata WHERE schema_name=:schema_name
     """), {"schema_name": database_name}).first()
-    if target_exists:
-        target_tables = master_db.execute(text("""
-            SELECT COUNT(*) FROM information_schema.tables
-            WHERE table_schema=:schema_name AND table_type='BASE TABLE'
-        """), {"schema_name": database_name}).scalar() or 0
-        if target_tables:
-            raise ValueError(f"Database '{database_name}' already exists and is not empty.")
-
-    created_database = not bool(target_exists)
-    if created_database:
-        master_db.execute(text(f"CREATE DATABASE `{database_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+    if not target_exists:
+        raise ValueError(
+            f"Database '{database_name}' was not found. Create it in GoDaddy cPanel and import the ManPro tenant template before approving this trial."
+        )
 
     try:
         table_names = [
@@ -4731,31 +4715,24 @@ def provision_trial_workspace(master_db, trial_request, requested_database_name=
                 FROM information_schema.tables
                 WHERE table_schema=:schema_name AND table_type='BASE TABLE'
                 ORDER BY table_name
-            """), {"schema_name": template_database}).all()
+            """), {"schema_name": database_name}).all()
         ]
-        if not table_names:
-            raise ValueError("Tenant template database contains no tables.")
-
-        for table_name in table_names:
-            if not re.fullmatch(r"[A-Za-z0-9_]+", table_name):
-                raise ValueError("Tenant template contains an unsupported table name.")
-            master_db.execute(text(
-                f"CREATE TABLE `{database_name}`.`{table_name}` LIKE `{template_database}`.`{table_name}`"
-            ))
-
-        for settings_table in ("gst_settings",):
-            if settings_table in table_names:
-                master_db.execute(text(
-                    f"INSERT INTO `{database_name}`.`{settings_table}` SELECT * FROM `{template_database}`.`{settings_table}`"
-                ))
+        required_tables = {"company", "users"}
+        missing_tables = required_tables.difference(table_names)
+        if missing_tables:
+            raise ValueError(
+                f"Database '{database_name}' is not prepared for ManPro. Import the tenant template first (missing: {', '.join(sorted(missing_tables))})."
+            )
 
         user_columns = {
             row[0] for row in master_db.execute(text(f"SHOW COLUMNS FROM `{database_name}`.`users`" )).all()
         }
-        if "email" not in user_columns:
-            master_db.execute(text(
-                f"ALTER TABLE `{database_name}`.`users` ADD COLUMN email VARCHAR(180) NULL AFTER full_name"
-            ))
+        required_user_columns = {"username", "password", "full_name", "email", "role", "is_active", "status"}
+        missing_user_columns = required_user_columns.difference(user_columns)
+        if missing_user_columns:
+            raise ValueError(
+                f"Database '{database_name}' has an outdated users table. Import the current tenant template (missing: {', '.join(sorted(missing_user_columns))})."
+            )
 
         master_db.execute(text(f"""
             INSERT INTO `{database_name}`.`company`
@@ -4770,9 +4747,6 @@ def provision_trial_workspace(master_db, trial_request, requested_database_name=
         master_db.commit()
     except Exception:
         master_db.rollback()
-        if created_database:
-            master_db.execute(text(f"DROP DATABASE `{database_name}`"))
-            master_db.commit()
         raise
 
     return database_name
