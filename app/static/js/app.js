@@ -18,6 +18,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     });
 
+    // Keep the containing expandable sidebar group open for the active page.
+    document.querySelectorAll(".menu-group a.active").forEach(function (link) {
+        const group = link.closest("details");
+        if (group) group.open = true;
+    });
+
     const sidebar = document.getElementById("sidebar");
     const menuToggle = document.getElementById("menuToggle");
     const backdrop = document.getElementById("sidebarBackdrop");

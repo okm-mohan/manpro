@@ -457,3 +457,6 @@ label{
         transition:none;
     }
 }
+
+/* Expandable sidebar sections */
+.menu-group{margin:10px 0}.menu-group details{width:100%}.menu-group summary{min-height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#94a3b8;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;list-style:none}.menu-group summary::-webkit-details-marker{display:none}.menu-group summary i{font-size:13px;transition:transform .18s ease}.menu-group details[open] summary i{transform:rotate(180deg)}.menu-group>details>ul{margin:0;padding:0;list-style:none}.menu-group>details>ul li{list-style:none}.menu-group summary:hover{color:#fff;background:#1e293b;border-radius:8px}
