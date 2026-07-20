@@ -59,10 +59,12 @@
         {% if screens.get('ai_chatbot', true) %}<li><a href="/ai-chatbot"><i class="bi bi-robot"></i><span>AI Chatbot</span></a></li>{% endif %}
 
         {% if current_plan != 'enterprise' %}
+        <li class="menu-divider" aria-hidden="true"></li>
         <li><a href="/upgrade-plan"><i class="bi bi-arrow-up-circle"></i><span>Upgrade Plan</span></a></li>
         {% endif %}
 
         {% if current_role in ["admin", "superadmin"] %}
+        <li class="menu-divider" aria-hidden="true"></li>
         <li><a href="/settings"><i class="bi bi-sliders2"></i><span>Settings</span></a></li>
         {% endif %}
     </ul>
