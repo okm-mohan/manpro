@@ -24,6 +24,7 @@ import smtplib
 import logging
 from email.message import EmailMessage
 from html import escape
+from urllib.request import Request as UrlRequest, urlopen
 try:
     from openai import AsyncOpenAI
 except ImportError:
@@ -249,11 +250,44 @@ def send_platform_notification(subject, details):
     Notifications must never prevent a customer action from completing if the
     mail provider is temporarily unavailable.
     """
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    recipient = os.getenv("MANPRO_OFFICIAL_EMAIL", "manpro.erp@gmail.com").strip()
+    if resend_api_key:
+        sender = os.getenv("RESEND_FROM_EMAIL", "ManPro <onboarding@resend.dev>").strip()
+        payload = json.dumps({
+            "from": sender,
+            "to": [recipient],
+            "subject": f"[ManPro] {subject}",
+            "html": (
+                "<div style=\"font-family:Arial,sans-serif;max-width:620px;padding:24px;color:#172033\">"
+                f"<h2 style=\"margin:0 0 18px\">{escape(subject)}</h2>"
+                "<table style=\"border-collapse:collapse;width:100%\">"
+                + "".join(
+                    f"<tr><th style=\"text-align:left;padding:8px;background:#f5f6fa\">{escape(str(label))}</th>"
+                    f"<td style=\"padding:8px;border-bottom:1px solid #e6e8ef\">{escape(str(value))}</td></tr>"
+                    for label, value in details.items()
+                )
+                + "</table></div>"
+            ),
+        }).encode("utf-8")
+        request = UrlRequest(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urlopen(request, timeout=15) as response:
+            if not 200 <= response.status < 300:
+                raise RuntimeError(f"Resend returned HTTP {response.status}.")
+        return
+
     smtp_host = os.getenv("SMTP_HOST", "").strip()
     smtp_user = os.getenv("SMTP_USER", "").strip()
     smtp_password = os.getenv("SMTP_PASSWORD", "")
     from_email = os.getenv("SMTP_FROM_EMAIL", smtp_user).strip()
-    recipient = os.getenv("MANPRO_OFFICIAL_EMAIL", "manpro.erp@gmail.com").strip()
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
 
     if not smtp_host or not from_email or not recipient:
