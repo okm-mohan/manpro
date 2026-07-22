@@ -8,7 +8,7 @@
                 {% if request.session.get("tenant_company_logo_url") %}
                 <img src="{{ request.session.get('tenant_company_logo_url') }}" alt="{{ request.session.get('tenant_company_name', 'ManPro Plus') }}">
                 {% else %}
-                <i class="bi bi-building-fill-gear"></i>
+                <img src="/static/images/manpro-ai-logo.png" alt="ManPro AI" style="width:100%;height:100%;object-fit:contain;border-radius:10px;background:#fff">
                 {% endif %}
             </div>
             <div class="company-name"><span class="company-title">{{ request.session.get("tenant_company_name", "MANPRO PLUS") }}</span></div>
