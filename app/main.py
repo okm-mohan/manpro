@@ -3536,7 +3536,15 @@ async def sales_order_save(request: Request):
         """), {"number": str(form.get("order_number") or "").strip(), "order_date": form.get("order_date"), "customer": int(customer_value), "delivery": form.get("expected_delivery_date") or None, "po_number": str(form.get("customer_po_number") or "").strip() or None, "po_date": form.get("customer_po_date") or None, "mode": mode, "status": status, "notes": str(form.get("notes") or ""), "document": document_path, "total": sum(item["total"] for item in rows)})
         order_id = result.lastrowid
         for item in rows:
-            db.execute(text("""INSERT INTO sales_order_items (sales_order_id,product_id,quantity,unit_price,gst_percent,line_total,approval_status) VALUES (:order,:product,:quantity,:rate,:gst,:total,:approval)"""), {"order": order_id, **item})
+            db.execute(text("""INSERT INTO sales_order_items (sales_order_id,product_id,quantity,unit_price,gst_percent,line_total,approval_status) VALUES (:order,:product,:quantity,:rate,:gst,:total,:approval)"""), {
+                "order": order_id,
+                "product": item["product_id"],
+                "quantity": item["quantity"],
+                "rate": item["rate"],
+                "gst": item["gst"],
+                "total": item["total"],
+                "approval": item["approval"],
+            })
         db.commit()
     finally:
         db.close()
