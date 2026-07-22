@@ -277,6 +277,7 @@ def send_platform_notification(subject, details):
             headers={
                 "Authorization": f"Bearer {resend_api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "ManPro-ERP/1.0",
             },
             method="POST",
         )
