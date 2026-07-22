@@ -88,6 +88,11 @@
 
             </div>
 
+            <div class="sales-order-reference" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0">
+                <div><label>Approved Sales Order</label><div class="sales-form-shell"><i class="bi bi-clipboard-check"></i><select name="sales_order_id"><option value="">No linked sales order</option>{% for order in approved_orders %}<option value="{{ order.id }}" data-customer-po="{{ order.customer_po_number or '' }}" data-customer-date="{{ order.customer_po_date or '' }}">{{ order.order_number }} — {{ order.customer_name }}</option>{% endfor %}</select></div></div>
+                <div><label>Customer PO Number</label><div class="sales-form-shell"><i class="bi bi-hash"></i><input name="customer_order_number" placeholder="Customer PO number"></div></div>
+                <div><label>Customer PO Date</label><div class="sales-form-shell"><i class="bi bi-calendar3"></i><input name="customer_order_date" type="date"></div></div>
+            </div>
             <div class="gst-tax-mode" data-tax-mode><i class="bi bi-geo-alt"></i><span>Select a customer to determine CGST/SGST or IGST.</span></div>
 
         </section>
@@ -191,5 +196,6 @@ let productsOptions = `
 </script>
 
 <script src="/static/js/sales_add.js?v=20260717-2"></script>
+<script>document.querySelector('[name="sales_order_id"]')?.addEventListener('change',function(){const o=this.selectedOptions[0];document.querySelector('[name="customer_order_number"]').value=o?.dataset.customerPo||'';document.querySelector('[name="customer_order_date"]').value=o?.dataset.customerDate||'';});</script>
 
 {% endblock %}

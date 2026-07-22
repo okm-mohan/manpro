@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 import calendar
 import os
 import uuid
+import base64
 import json
 import re
 import hashlib
@@ -341,6 +342,7 @@ templates = Jinja2Templates(env=env)
 SCREEN_DEFINITIONS = {
     "purchase": "Purchase",
     "purchase_orders": "Purchase Orders",
+    "sales_orders": "Sales Orders",
     "sales": "Sales",
     "accounts": "Accounts",
     "hr": "HR Department",
@@ -387,6 +389,7 @@ SCREEN_PATHS = {
     "customers": ("/customers", "/customer"),
     "purchase": ("/purchase",),
     "purchase_orders": ("/purchase-orders",),
+    "sales_orders": ("/sales-orders",),
     "sales": ("/sales",),
     "accounts": ("/accounts", "/expenses", "/expense", "/income-expenses", "/account-head", "/account-transaction"),
     "hr": ("/hr", "/employee", "/employees", "/employee-advances", "/employee-attendance", "/salary-receipt"),
@@ -3381,6 +3384,161 @@ async def purchase_update(request: Request):
     return RedirectResponse("/purchase", status_code=303)
 
 
+def ensure_sales_order_tables(db):
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS sales_orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_number VARCHAR(100) NOT NULL,
+            order_date DATE NOT NULL,
+            customer_id INT NOT NULL,
+            expected_delivery_date DATE NULL,
+            customer_po_number VARCHAR(100) NULL,
+            customer_po_date DATE NULL,
+            approval_mode VARCHAR(20) NOT NULL DEFAULT 'entire',
+            status VARCHAR(30) NOT NULL DEFAULT 'Pending Approval',
+            notes TEXT NULL,
+            document_path VARCHAR(500) NULL,
+            total_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_sales_orders_date (order_date),
+            INDEX idx_sales_orders_customer (customer_id)
+        )
+    """))
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS sales_order_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            sales_order_id INT NOT NULL,
+            product_id INT NOT NULL,
+            quantity INT NOT NULL,
+            unit_price DECIMAL(14,2) NOT NULL DEFAULT 0,
+            gst_percent DECIMAL(7,2) NOT NULL DEFAULT 0,
+            line_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            approval_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+            INDEX idx_sales_order_items_order (sales_order_id)
+        )
+    """))
+    sales_columns = {row["Field"] for row in db.execute(text("SHOW COLUMNS FROM sales")).mappings().all()}
+    for column, definition in {
+        "sales_order_id": "INT NULL",
+        "customer_order_number": "VARCHAR(100) NULL",
+        "customer_order_date": "DATE NULL",
+    }.items():
+        if column not in sales_columns:
+            db.execute(text(f"ALTER TABLE sales ADD COLUMN {column} {definition}"))
+    db.commit()
+
+
+@app.get("/sales-orders")
+def sales_orders(request: Request, from_date: str = "", to_date: str = ""):
+    from_date = from_date or (date.today() - timedelta(days=30)).isoformat()
+    to_date = to_date or date.today().isoformat()
+    db = SessionLocal()
+    try:
+        ensure_sales_order_tables(db)
+        orders = db.execute(text("""
+            SELECT so.*, COALESCE(NULLIF(c.company_name,''), c.customer_name) AS customer_name
+            FROM sales_orders so JOIN customers c ON c.id=so.customer_id
+            WHERE so.order_date BETWEEN :from_date AND :to_date
+            ORDER BY so.order_date DESC, so.id DESC
+        """), {"from_date": from_date, "to_date": to_date}).mappings().all()
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="sales_orders.html", context={"request": request, "orders": orders, "from_date": from_date, "to_date": to_date})
+
+
+@app.get("/sales-orders/add")
+def sales_order_add(request: Request):
+    db = SessionLocal()
+    try:
+        ensure_sales_order_tables(db)
+        customers = db.execute(text("SELECT id, COALESCE(NULLIF(company_name,''), customer_name) AS name FROM customers ORDER BY name")).mappings().all()
+        products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) AS sale_price, COALESCE(gst_percent,0) AS gst_percent FROM products ORDER BY product_name")).mappings().all()
+        next_id = db.execute(text("SELECT COALESCE(MAX(id),0)+1 FROM sales_orders")).scalar()
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="sales_order_form.html", context={"request": request, "customers": customers, "products": products, "today": date.today().isoformat(), "order_number": f"SO-{date.today():%Y%m%d}-{int(next_id):03d}"})
+
+
+@app.post("/sales-orders/scan")
+async def sales_order_scan(order_scan: UploadFile = File(...)):
+    """Extract key header data from a customer PO when the optional AI key is configured."""
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key or AsyncOpenAI is None:
+        raise HTTPException(status_code=503, detail="Automatic scan reading needs the OPENAI_API_KEY configuration. You can still attach the scan and enter the order manually.")
+    image_data = await order_scan.read()
+    if not image_data or len(image_data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Choose a scan smaller than 10 MB.")
+    content_type = order_scan.content_type or "image/jpeg"
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=400, detail="Automatic reading currently supports JPG or PNG scans. PDFs can still be attached.")
+    prompt = """Read this customer purchase order. Return ONLY JSON with keys customer_name, customer_po_number, customer_po_date, expected_delivery_date. Dates must be YYYY-MM-DD when present, otherwise empty strings. Do not invent any values."""
+    try:
+        response = await AsyncOpenAI(api_key=api_key).responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5.6-luna"),
+            input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_image", "image_url": f"data:{content_type};base64,{base64.b64encode(image_data).decode('ascii')}"}]}],
+            max_output_tokens=300,
+        )
+        raw = (response.output_text or "").strip()
+        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw).strip()
+        data = json.loads(raw)
+        return JSONResponse({key: str(data.get(key) or "") for key in ("customer_name", "customer_po_number", "customer_po_date", "expected_delivery_date")})
+    except Exception:
+        raise HTTPException(status_code=422, detail="The scan could not be read. Please check the image and enter the order details.")
+
+
+@app.post("/sales-orders/save")
+async def sales_order_save(request: Request):
+    form = await request.form()
+    product_ids = form.getlist("product_id")
+    quantities = form.getlist("quantity")
+    rates = form.getlist("unit_price")
+    gst_rates = form.getlist("gst_percent")
+    item_approvals = form.getlist("item_approval")
+    mode = "material" if form.get("approval_mode") == "material" else "entire"
+    rows = []
+    for index, product_id in enumerate(product_ids):
+        try:
+            quantity = int(float(quantities[index]))
+            rate = float(rates[index])
+            gst = float(gst_rates[index] or 0)
+            product_id = int(product_id)
+        except (TypeError, ValueError, IndexError):
+            continue
+        if product_id and quantity > 0:
+            approval = "Approved" if mode == "entire" and form.get("entire_approval") == "approved" else ("Approved" if index < len(item_approvals) and item_approvals[index] == "approved" else "Pending")
+            rows.append({"product_id": product_id, "quantity": quantity, "rate": rate, "gst": gst, "total": quantity * rate * (1 + gst / 100), "approval": approval})
+    if not rows:
+        raise HTTPException(status_code=400, detail="Add at least one sales product with a quantity.")
+    document_path = None
+    uploaded = form.get("order_scan")
+    if uploaded and getattr(uploaded, "filename", ""):
+        extension = os.path.splitext(uploaded.filename)[1].lower()
+        if extension not in {".pdf", ".png", ".jpg", ".jpeg"}:
+            raise HTTPException(status_code=400, detail="Only PDF, PNG and JPG order scans are allowed.")
+        upload_directory = "app/static/uploads/sales_orders"
+        os.makedirs(upload_directory, exist_ok=True)
+        filename = f"sales-order-{uuid.uuid4().hex}{extension}"
+        with open(os.path.join(upload_directory, filename), "wb") as file_handle:
+            file_handle.write(await uploaded.read())
+        document_path = f"/static/uploads/sales_orders/{filename}"
+    approved_count = sum(item["approval"] == "Approved" for item in rows)
+    status = "Approved" if approved_count == len(rows) else ("Partially Approved" if approved_count else "Pending Approval")
+    db = SessionLocal()
+    try:
+        ensure_sales_order_tables(db)
+        result = db.execute(text("""
+            INSERT INTO sales_orders (order_number,order_date,customer_id,expected_delivery_date,customer_po_number,customer_po_date,approval_mode,status,notes,document_path,total_amount)
+            VALUES (:number,:order_date,:customer,:delivery,:po_number,:po_date,:mode,:status,:notes,:document,:total)
+        """), {"number": str(form.get("order_number") or "").strip(), "order_date": form.get("order_date"), "customer": int(form.get("customer_id")), "delivery": form.get("expected_delivery_date") or None, "po_number": str(form.get("customer_po_number") or "").strip() or None, "po_date": form.get("customer_po_date") or None, "mode": mode, "status": status, "notes": str(form.get("notes") or ""), "document": document_path, "total": sum(item["total"] for item in rows)})
+        order_id = result.lastrowid
+        for item in rows:
+            db.execute(text("""INSERT INTO sales_order_items (sales_order_id,product_id,quantity,unit_price,gst_percent,line_total,approval_status) VALUES (:order,:product,:quantity,:rate,:gst,:total,:approval)"""), {"order": order_id, **item})
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/sales-orders", status_code=303)
+
+
 @app.get("/sales")
 def sales_page(request: Request, from_date: str = None, to_date: str = None):
 
@@ -3464,6 +3622,7 @@ def sales_add(request: Request):
 
     db = SessionLocal()
     ensure_gst_component_columns(db)
+    ensure_sales_order_tables(db)
 
     customers = db.execute(text("""
             SELECT
@@ -3493,6 +3652,14 @@ def sales_add(request: Request):
 
     invoice_number = next_sales_invoice_number(db, date.today())
 
+    approved_orders = db.execute(text("""
+        SELECT so.id, so.order_number, so.order_date, so.customer_po_number, so.customer_po_date,
+               COALESCE(NULLIF(c.company_name,''),c.customer_name) AS customer_name
+        FROM sales_orders so JOIN customers c ON c.id=so.customer_id
+        WHERE so.status IN ('Approved','Partially Approved')
+        ORDER BY so.order_date DESC, so.id DESC
+    """)).mappings().all()
+
     db.close()
 
     return templates.TemplateResponse(
@@ -3504,6 +3671,7 @@ def sales_add(request: Request):
             "invoice_number": invoice_number,
             "today": date.today().strftime("%Y-%m-%d"),
             "company": company,
+            "approved_orders": approved_orders,
         },
     )
 
@@ -3532,6 +3700,7 @@ async def sales_save(request: Request):
 
     db = SessionLocal()
     ensure_gst_component_columns(db)
+    ensure_sales_order_tables(db)
     try:
         invoice_date = date.fromisoformat(str(sale_date))
     except (TypeError, ValueError):
@@ -3566,6 +3735,9 @@ async def sales_save(request: Request):
                 tax_type,
                 place_of_supply,
                 grand_total,
+                sales_order_id,
+                customer_order_number,
+                customer_order_date,
                 created_at
             )
             VALUES
@@ -3581,6 +3753,9 @@ async def sales_save(request: Request):
                 :tax_type,
                 :place_of_supply,
                 :grand_total,
+                :sales_order_id,
+                :customer_order_number,
+                :customer_order_date,
                 NOW()
             )
         """),
@@ -3596,6 +3771,9 @@ async def sales_save(request: Request):
             "tax_type": tax_context["tax_type"],
             "place_of_supply": tax_context["place_of_supply"],
             "grand_total": grand_total,
+            "sales_order_id": int(form.get("sales_order_id")) if str(form.get("sales_order_id") or "").isdigit() else None,
+            "customer_order_number": str(form.get("customer_order_number") or "").strip() or None,
+            "customer_order_date": form.get("customer_order_date") or None,
         },
     )
 
