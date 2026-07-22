@@ -21,6 +21,7 @@
 </section>
 
 <section class="plan-heading"><span>PLAN OPTIONS</span><h2>Upgrade when you are ready</h2><p>All plans include secure cloud access, product updates and guided onboarding.</p></section>
+{% if message %}<p class="upgrade-request-message">{{ message }}</p>{% endif %}
 
 <section class="plan-grid">
     {% for plan in plans %}
@@ -33,7 +34,7 @@
         {% if plan.name == (company.plan_name or 'Starter') %}
         <button type="button" disabled>Current plan</button>
         {% else %}
-        <button type="button" disabled title="Online payment will be enabled soon"><i class="bi bi-lock"></i> Payment coming soon</button>
+        <form method="post" action="/upgrade-plan/request"><input type="hidden" name="plan_name" value="{{ plan.name }}"><button type="submit"><i class="bi bi-send"></i> Request this plan</button></form>
         {% endif %}
     </article>
     {% endfor %}

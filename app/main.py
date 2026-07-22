@@ -22,6 +22,7 @@ import hashlib
 import secrets
 import smtplib
 from email.message import EmailMessage
+from html import escape
 try:
     from openai import AsyncOpenAI
 except ImportError:
@@ -233,6 +234,55 @@ def send_password_reset_email(recipient, company_name, otp):
             server.starttls()
             server.ehlo()
     try:
+        if smtp_user:
+            server.login(smtp_user, smtp_password)
+        server.send_message(message)
+    finally:
+        server.quit()
+
+
+def send_platform_notification(subject, details):
+    """Send important platform events to the ManPro operations inbox.
+
+    Notifications must never prevent a customer action from completing if the
+    mail provider is temporarily unavailable.
+    """
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    from_email = os.getenv("SMTP_FROM_EMAIL", smtp_user).strip()
+    recipient = os.getenv("MANPRO_OFFICIAL_EMAIL", "manpro.erp@gmail.com").strip()
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+
+    if not smtp_host or not from_email or not recipient:
+        raise RuntimeError("Email delivery is not configured.")
+
+    lines = [f"{label}: {value}" for label, value in details.items()]
+    message = EmailMessage()
+    message["Subject"] = f"[ManPro] {subject}"
+    message["From"] = from_email
+    message["To"] = recipient
+    message.set_content("\n".join(lines))
+    message.add_alternative(
+        "<div style=\"font-family:Arial,sans-serif;max-width:620px;padding:24px;color:#172033\">"
+        f"<h2 style=\"margin:0 0 18px\">{escape(subject)}</h2>"
+        "<table style=\"border-collapse:collapse;width:100%\">"
+        + "".join(
+            f"<tr><th style=\"text-align:left;padding:8px;background:#f5f6fa\">{escape(str(label))}</th>"
+            f"<td style=\"padding:8px;border-bottom:1px solid #e6e8ef\">{escape(str(value))}</td></tr>"
+            for label, value in details.items()
+        )
+        + "</table></div>",
+        subtype="html",
+    )
+
+    use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
+    server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) if use_ssl else smtplib.SMTP(smtp_host, smtp_port, timeout=15)
+    try:
+        if not use_ssl and os.getenv("SMTP_USE_TLS", "true").lower() == "true":
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
         if smtp_user:
             server.login(smtp_user, smtp_password)
         server.send_message(message)
@@ -856,10 +906,86 @@ async def company_enter_page(request: Request):
         context={
             "request": request,
             "error": "",
-            "company_code": "",
+            "company_code": str(request.query_params.get("company_code") or "").strip().upper(),
             "offers": content["offers"],
             "updates": content["updates"],
         },
+    )
+
+
+@app.get("/manpro-admin/companies")
+async def platform_companies(request: Request, page: int = 1):
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
+
+    page_size = 10
+    page = max(1, int(page or 1))
+    db = MasterSessionLocal()
+    try:
+        ensure_saas_subscription_columns(db)
+        total = db.execute(text("SELECT COUNT(*) FROM saas_companies")).scalar() or 0
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        page = min(page, total_pages)
+        rows = db.execute(text("""
+            SELECT id, company_code, company_name, plan_name, status, subscription_status,
+                   trial_start, trial_end, contact_name, mobile, email, database_name, created_at
+            FROM saas_companies
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+        """), {"limit": page_size, "offset": (page - 1) * page_size}).mappings().all()
+    finally:
+        db.close()
+
+    try:
+        send_platform_notification("New trial request", {
+            "Company": values["company_name"],
+            "Contact": values["contact_name"],
+            "Email": values["email"],
+            "Mobile": f"+91 {values['mobile']}",
+            "State": values["state"],
+            "Industry": values["industry_type"],
+            "Expected users": expected_users,
+            "Requested plan": values["plan_name"],
+            "Company code": company_code,
+        })
+    except Exception:
+        pass
+
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_companies.html",
+        context={
+            "request": request,
+            "companies": [dict(row) for row in rows],
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "platform_page": "companies",
+        },
+    )
+
+
+@app.get("/manpro-admin/companies/{company_code}")
+async def platform_company_details(request: Request, company_code: str):
+    blocked = platform_admin_redirect(request)
+    if blocked:
+        return blocked
+
+    db = MasterSessionLocal()
+    try:
+        ensure_saas_subscription_columns(db)
+        company = db.execute(text("""
+            SELECT * FROM saas_companies WHERE company_code=:company_code LIMIT 1
+        """), {"company_code": company_code.strip().upper()}).mappings().first()
+    finally:
+        db.close()
+    if not company:
+        return RedirectResponse("/manpro-admin/companies", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="platform_company_details.html",
+        context={"request": request, "company": dict(company), "platform_page": "companies"},
     )
 
 
@@ -1551,8 +1677,53 @@ def upgrade_plan(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="upgrade_plan.html",
-        context={"request": request, "company": dict(company), "plans": plans},
+        context={
+            "request": request,
+            "company": dict(company),
+            "plans": plans,
+            "message": request.query_params.get("message", ""),
+        },
     )
+
+
+@app.post("/upgrade-plan/request")
+def request_paid_plan(request: Request, plan_name: str = Form(...)):
+    if not request.session.get("user"):
+        return RedirectResponse("/login", status_code=303)
+
+    company_id = request.session.get("tenant_company_id")
+    allowed_plans = {"Starter", "Professional", "Business", "Enterprise"}
+    if not company_id or plan_name not in allowed_plans:
+        return RedirectResponse("/upgrade-plan?message=Unable+to+submit+that+request.", status_code=303)
+
+    db = MasterSessionLocal()
+    try:
+        company = db.execute(text("""
+            SELECT company_code, company_name, plan_name, contact_name, mobile, email
+            FROM saas_companies WHERE id=:company_id LIMIT 1
+        """), {"company_id": company_id}).mappings().first()
+    finally:
+        db.close()
+
+    if not company:
+        return RedirectResponse("/company-enter", status_code=303)
+
+    try:
+        send_platform_notification("Paid plan enquiry", {
+            "Company": company["company_name"],
+            "Company code": company["company_code"],
+            "Current plan": company.get("plan_name") or "Not set",
+            "Requested plan": plan_name,
+            "Contact": company.get("contact_name") or "Not set",
+            "Email": company.get("email") or "Not set",
+            "Mobile": company.get("mobile") or "Not set",
+        })
+    except Exception:
+        # Email is an internal intimation only; it must not interrupt the
+        # customer's plan-request workflow when SMTP is unavailable.
+        pass
+
+    return RedirectResponse("/upgrade-plan?message=Your+upgrade+request+has+been+sent+to+ManPro.", status_code=303)
 
 
 @app.post("/company/save")
