@@ -2264,6 +2264,85 @@ def customers(request: Request):
     )
 
 
+def ensure_hdfoods_shop_columns(db):
+    """Keep HD Foods shop onboarding metadata separate from the generic customer UI."""
+    columns = {
+        row[0] for row in db.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema=DATABASE() AND table_name='customers'
+        """)).all()
+    }
+    if "onboarded_date" not in columns:
+        db.execute(text("ALTER TABLE customers ADD COLUMN onboarded_date DATE NULL"))
+        db.execute(text("UPDATE customers SET onboarded_date=CURDATE() WHERE onboarded_date IS NULL"))
+        db.commit()
+
+
+@app.get("/hdfoods/shops")
+def hdfoods_shops(request: Request, from_date: str = "", to_date: str = "", search: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+
+    # Open the HD Foods shop directory with the most useful operational view.
+    if not request.query_params:
+        to_date = date.today().isoformat()
+        from_date = (date.today() - timedelta(days=30)).isoformat()
+
+    db = SessionLocal()
+    ensure_hdfoods_shop_columns(db)
+    where = ["1=1"]
+    params = {}
+    if from_date:
+        where.append("onboarded_date >= :from_date")
+        params["from_date"] = from_date
+    if to_date:
+        where.append("onboarded_date <= :to_date")
+        params["to_date"] = to_date
+    if search:
+        where.append("(company_name LIKE :search OR customer_name LIKE :search OR mobile LIKE :search)")
+        params["search"] = f"%{search.strip()}%"
+
+    shops = db.execute(text(f"""
+        SELECT id, customer_name, company_name, mobile, email, address, state, gst_number, onboarded_date
+        FROM customers WHERE {' AND '.join(where)}
+        ORDER BY onboarded_date DESC, company_name ASC
+    """), params).mappings().all()
+    totals = db.execute(text("""
+        SELECT COUNT(*) AS total, SUM(onboarded_date=CURDATE()) AS today, SUM(onboarded_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS this_week
+        FROM customers
+    """)).mappings().one()
+    db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_shops.html", context={
+        "shops": shops, "from_date": from_date, "to_date": to_date, "search": search, "totals": totals,
+    })
+
+
+@app.get("/hdfoods/shops/onboard")
+def hdfoods_shop_onboard(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    return templates.TemplateResponse(request=request, name="hdfoods_shop_form.html", context={"today": date.today().isoformat()})
+
+
+@app.post("/hdfoods/shops/onboard")
+def hdfoods_shop_save(
+    request: Request, company_name: str = Form(""), mobile: str = Form(""), email: str = Form(""),
+    address: str = Form(""), gst_number: str = Form(""), state: str = Form(""), onboarded_date: str = Form(""),
+):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    db = SessionLocal()
+    ensure_hdfoods_shop_columns(db)
+    db.execute(text("""
+        INSERT INTO customers (customer_name, company_name, mobile, email, address, gst_number, state, onboarded_date)
+        VALUES (:company_name, :company_name, :mobile, :email, :address, :gst_number, :state, :onboarded_date)
+    """), {"company_name": company_name, "mobile": mobile, "email": email, "address": address,
+            "gst_number": gst_number, "state": state, "onboarded_date": onboarded_date or date.today().isoformat()})
+    db.commit()
+    db.close()
+    return RedirectResponse("/hdfoods/shops", status_code=303)
+
+
 @app.get("/customer/add")
 def customer_add(request: Request):
     db = SessionLocal()

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_title %}Shops & Customers{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/hdfoods_shops.css"><link rel="stylesheet" href="/static/css/hdfoods_shop_background.css">{% endblock %}
+{% block content %}
+<main class="shops-page">
+  <section class="shops-hero"><div><span>HD FOODS · SHOP NETWORK</span><h1>Shops & Customers</h1><p>Onboard shops, review customer details, and take action from one workspace.</p></div><a href="/hdfoods/shops/onboard"><i class="bi bi-plus-lg"></i> Onboard new shop</a></section>
+  <section class="shop-stats"><article><i class="bi bi-shop"></i><span>Total shops<strong>{{ totals.total or 0 }}</strong></span></article><article><i class="bi bi-calendar-check"></i><span>Onboarded today<strong>{{ totals.today or 0 }}</strong></span></article><article><i class="bi bi-graph-up-arrow"></i><span>Added this week<strong>{{ totals.this_week or 0 }}</strong></span></article></section>
+  <section class="shops-card"><header><div><span>SHOP DIRECTORY</span><h2>All shops</h2></div><a href="/sales-orders/add"><i class="bi bi-clipboard-plus"></i> Create order</a></header>
+    <form class="shop-filters" id="shopFilters" method="get"><label>From date<input type="date" name="from_date" value="{{ from_date }}"></label><label>To date<input type="date" name="to_date" value="{{ to_date }}"></label><label class="shop-search">Find a shop<input type="search" name="search" value="{{ search }}" placeholder="Shop name or mobile" autocomplete="off"></label><a href="/hdfoods/shops">Reset</a></form>
+    <div class="shop-tools"><a href="/hdfoods/daily-visits"><i class="bi bi-geo-alt"></i> Daily visits</a><a href="/hdfoods/followups"><i class="bi bi-bell"></i> Follow-ups</a><a href="/customer-outstanding-report"><i class="bi bi-wallet2"></i> Collections</a><a href="/hdfoods/shop-map"><i class="bi bi-map"></i> Shop map</a></div>
+    <div class="shops-table-wrap"><table><thead><tr><th>Shop</th><th>Contact</th><th>Location</th><th>Onboarded</th><th>Actions</th></tr></thead><tbody>{% for shop in shops %}<tr class="shop-row" data-shop-search="{{ (shop.company_name or shop.customer_name or '')|lower }} {{ (shop.mobile or '')|lower }}"><td><div class="shop-name"><b>{{ (shop.company_name or shop.customer_name)[:1]|upper }}</b><span><strong>{{ shop.company_name or shop.customer_name }}</strong><small>{{ shop.gst_number or 'GST not added' }}</small></span></div></td><td><strong>{{ shop.mobile or 'Mobile not added' }}</strong><small>{{ shop.email or '—' }}</small></td><td>{{ shop.state or 'Location not added' }}</td><td><span class="date-pill"><i class="bi bi-calendar3"></i> {{ shop.onboarded_date.strftime('%d %b %Y') if shop.onboarded_date else '—' }}</span></td><td><div class="shop-actions"><a href="/sales-orders/add"><i class="bi bi-clipboard-plus"></i> Order</a><a href="/customer/edit/{{ shop.id }}"><i class="bi bi-pencil"></i> Edit</a></div></td></tr>{% else %}<tr><td colspan="5"><div class="shops-empty"><i class="bi bi-shop"></i><strong>No shops found</strong><span>Onboard your first shop to begin field sales.</span><a href="/hdfoods/shops/onboard">Onboard new shop</a></div></td></tr>{% endfor %}<tr id="shopSearchEmpty" hidden><td colspan="5"><div class="shops-empty shops-search-empty"><i class="bi bi-search"></i><strong>No matching shops</strong><span>Try another shop name or mobile number.</span></div></td></tr></tbody></table></div>
+  </section>
+</main>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("shopFilters");
+    if (!form) return;
+    const search = form.querySelector('input[name="search"]');
+    const dates = form.querySelectorAll('input[type="date"]');
+    const rows = Array.from(document.querySelectorAll('.shop-row'));
+    const noMatch = document.getElementById('shopSearchEmpty');
+    search.addEventListener("input", function () {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const matches = !term || row.dataset.shopSearch.includes(term);
+            row.hidden = !matches;
+            if (matches) visible += 1;
+        });
+        if (noMatch) noMatch.hidden = visible !== 0;
+    });
+    dates.forEach(function (field) {
+        field.addEventListener("change", function () { form.requestSubmit(); });
+    });
+});
+</script>
+{% endblock %}
