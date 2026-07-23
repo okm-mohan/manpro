@@ -3501,6 +3501,60 @@ def sales_order_view(request: Request, order_id: int):
     })
 
 
+def sales_order_document_data(db, order_id):
+    ensure_sales_order_tables(db)
+    company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first() or {}
+    order = db.execute(text("""
+        SELECT so.*, COALESCE(NULLIF(c.company_name,''), c.customer_name) AS customer_name,
+               c.address AS customer_address, c.mobile AS customer_mobile, c.email AS customer_email, c.gst_number AS customer_gst_number
+        FROM sales_orders so JOIN customers c ON c.id=so.customer_id WHERE so.id=:id LIMIT 1
+    """), {"id": order_id}).mappings().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Sales order not found.")
+    items = db.execute(text("""
+        SELECT soi.*, p.product_name FROM sales_order_items soi
+        JOIN products p ON p.id=soi.product_id WHERE soi.sales_order_id=:id ORDER BY soi.id
+    """), {"id": order_id}).mappings().all()
+    return dict(company), dict(order), [dict(item) for item in items]
+
+
+def sales_order_pdf_bytes(company, order, items):
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=12*mm, rightMargin=12*mm, topMargin=12*mm, bottomMargin=14*mm)
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle("SOTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=19, textColor=colors.HexColor("#0f766e"), alignment=TA_CENTER)
+    body = ParagraphStyle("SOBody", parent=styles["Normal"], fontSize=8.5, leading=11)
+    address = ", ".join(str(company.get(k) or "").strip() for k in ("address", "city", "state", "pincode") if str(company.get(k) or "").strip())
+    story = [Paragraph(escape(str(company.get("company_name") or "Company Name")), title), Paragraph(escape(address or "Company address not configured"), body), Paragraph(escape(f"Phone: {company.get('phone') or '—'} | GSTIN: {company.get('gst_number') or '—'}"), body), Spacer(1, 5*mm), Paragraph("SALES ORDER", title), Spacer(1, 3*mm)]
+    customer = "<br/>".join(filter(None, [escape(str(order.get("customer_name") or "Customer")), escape(str(order.get("customer_address") or "")), escape(str(order.get("customer_mobile") or order.get("customer_email") or ""))]))
+    details = Table([[Paragraph("<b>BILL TO</b><br/>" + customer, body), Paragraph(f"<b>Order No:</b> {escape(str(order.get('order_number') or '—'))}<br/><b>Date:</b> {escape(str(order.get('order_date') or '—'))}<br/><b>Customer PO:</b> {escape(str(order.get('customer_po_number') or '—'))}<br/><b>Expected Delivery:</b> {escape(str(order.get('expected_delivery_date') or '—'))}", body)]], colWidths=[95*mm, 90*mm])
+    details.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f0fdf4")),("BOX",(0,0),(-1,-1),.5,colors.HexColor("#86efac")),("INNERGRID",(0,0),(-1,-1),.5,colors.HexColor("#bbf7d0")),("VALIGN",(0,0),(-1,-1),"TOP"),("PADDING",(0,0),(-1,-1),8)]))
+    story += [details, Spacer(1, 6*mm)]
+    rows = [["#", "Product", "Qty", "Rate", "GST", "Line Total", "Approval"]]
+    for number, item in enumerate(items, 1): rows.append([number, Paragraph(escape(str(item.get("product_name") or "—")), body), item.get("quantity") or 0, f"Rs. {float(item.get('unit_price') or 0):,.2f}", f"{float(item.get('gst_percent') or 0):.2f}%", f"Rs. {float(item.get('line_total') or 0):,.2f}", item.get("approval_status") or "Pending"])
+    table = Table(rows, repeatRows=1, colWidths=[9*mm,64*mm,15*mm,26*mm,17*mm,31*mm,23*mm])
+    table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#0f766e")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.4,colors.HexColor("#94a3b8")),("FONTSIZE",(0,0),(-1,-1),8),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ALIGN",(2,1),(-1,-1),"RIGHT"),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+    story += [table, Spacer(1, 5*mm), Table([["Grand Total", f"Rs. {float(order.get('total_amount') or 0):,.2f}"]], colWidths=[145*mm,40*mm], style=[("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#d1fae5")),("FONTNAME",(0,0),(-1,-1),"Helvetica-Bold"),("ALIGN",(1,0),(1,0),"RIGHT"),("PADDING",(0,0),(-1,-1),8)])]
+    doc.build(story); output.seek(0); return output.getvalue()
+
+
+@app.get("/sales-orders/{order_id}/print")
+def sales_order_print(request: Request, order_id: int):
+    db = SessionLocal()
+    try: company, order, items = sales_order_document_data(db, order_id)
+    finally: db.close()
+    return templates.TemplateResponse(request=request, name="sales_order_print.html", context={"request":request,"company":company,"order":order,"items":items})
+
+
+@app.get("/sales-orders/{order_id}/pdf")
+def sales_order_pdf(request: Request, order_id: int, download: int = 0):
+    db = SessionLocal()
+    try: company, order, items = sales_order_document_data(db, order_id)
+    finally: db.close()
+    filename = f"sales-order-{re.sub(r'[^A-Za-z0-9_-]', '-', str(order['order_number']))}.pdf"
+    return Response(content=sales_order_pdf_bytes(company, order, items), media_type="application/pdf", headers={"Content-Disposition": f'{"attachment" if download else "inline"}; filename="{filename}"'})
+
+
 @app.post("/sales-orders/{order_id}/approve")
 def approve_sales_order(request: Request, order_id: int, from_date: str = Form(""), to_date: str = Form("")):
     """Approve every remaining line on a sales order from the order register."""

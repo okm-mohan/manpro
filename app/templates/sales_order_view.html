@@ -13,7 +13,7 @@
 <div class="sales-order-view-page">
     <section class="sales-order-view-hero">
         <div><span class="sales-order-view-kicker">Customer Sales Order</span><h1>{{ order.order_number }}</h1><p>Created on {{ order.order_date }}</p></div>
-        <a href="/sales-orders" class="btn-sales-orders-reset"><i class="bi bi-arrow-left"></i><span>Back to Orders</span></a>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end"><a href="/sales-orders/{{ order.id }}/print" target="_blank" class="btn-sales-orders-reset"><i class="bi bi-printer"></i><span>A4 Preview</span></a><a href="/sales-orders/{{ order.id }}/pdf?download=1" class="btn-add-sales-order"><i class="bi bi-file-earmark-arrow-down"></i><span>Download PDF</span></a><a href="/sales-orders" class="btn-sales-orders-reset"><i class="bi bi-arrow-left"></i><span>Back to Orders</span></a></div>
     </section>
     <div class="sales-order-view-grid">
         <section class="sales-order-view-card">
