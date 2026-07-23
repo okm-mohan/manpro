@@ -3587,6 +3587,21 @@ def hdfoods_orders(request: Request, from_date: str = "", to_date: str = ""):
     })
 
 
+@app.get("/hdfoods/shop-map")
+def hdfoods_shop_map(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/sales-orders", status_code=303)
+    sample_orders = [
+        {"shop": "Sri Murugan Stores", "area": "RS Puram, Coimbatore", "order": "SO-240701", "amount": "₹ 8,450", "status": "Due today", "lat": 11.0183, "lng": 76.9558, "tone": "urgent"},
+        {"shop": "Sadhik Coffee Shop", "area": "Gandhipuram, Coimbatore", "order": "SO-240702", "amount": "₹ 4,280", "status": "Packed", "lat": 11.0265, "lng": 76.9677, "tone": "packed"},
+        {"shop": "Anand Mini Mart", "area": "Saibaba Colony", "order": "SO-240703", "amount": "₹ 12,900", "status": "Ready", "lat": 11.0267, "lng": 76.9451, "tone": "ready"},
+        {"shop": "Vijay Supermarket", "area": "Peelamedu", "order": "SO-240704", "amount": "₹ 6,720", "status": "Due today", "lat": 11.0282, "lng": 77.0194, "tone": "urgent"},
+        {"shop": "Green Leaf Stores", "area": "Singanallur", "order": "SO-240705", "amount": "₹ 9,600", "status": "Scheduled", "lat": 11.0005, "lng": 77.0327, "tone": "scheduled"},
+        {"shop": "Lakshmi Traders", "area": "Kuniamuthur", "order": "SO-240706", "amount": "₹ 5,350", "status": "Ready", "lat": 10.9953, "lng": 76.9424, "tone": "ready"},
+    ]
+    return templates.TemplateResponse(request=request, name="hdfoods_order_map.html", context={"sample_orders": sample_orders})
+
+
 @app.get("/sales-orders/{order_id}")
 def sales_order_view(request: Request, order_id: int):
     db = SessionLocal()
