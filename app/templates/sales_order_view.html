@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block page_title %}{{ order.order_number }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/sales_orders.css">
+<style>
+.sales-order-view-page{display:flex;flex-direction:column;gap:22px}.sales-order-view-hero{padding:28px;border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,#065f46,#1d4ed8)}.sales-order-view-kicker{display:block;color:#fbcfe8;font-size:12px;font-weight:850;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}.sales-order-view-hero h1{margin:0;font-size:30px;font-weight:850}.sales-order-view-hero p{margin:6px 0 0;color:#dbeafe}.sales-order-view-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:22px}.sales-order-view-card{border:1px solid #e2e8f0;border-radius:8px;background:#fff;box-shadow:0 14px 34px rgba(6,95,70,.07);overflow:hidden}.sales-order-view-card h2{margin:0;padding:19px 22px;border-bottom:1px solid #e2e8f0;font-size:19px;font-weight:850}.sales-order-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:22px}.sales-order-meta span{display:block;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}.sales-order-meta strong{color:#0f172a;font-size:14px;overflow-wrap:anywhere}.sales-order-view-notes{padding:0 22px 22px;color:#475569;line-height:1.6}.sales-order-view-total{padding:18px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;color:#0f172a;font-size:17px;font-weight:850}.sales-order-view-total strong{font-size:22px;color:#047857}.sales-order-item-status{display:inline-flex;min-height:27px;align-items:center;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:850}.item-approved{color:#166534;background:#dcfce7}.item-pending{color:#475569;background:#e2e8f0}.sales-order-source-link{margin:0 22px 22px;display:inline-flex;align-items:center;gap:7px;color:#1d4ed8;font-weight:850;text-decoration:none}.sales-order-source-link:hover{text-decoration:underline}@media(max-width:900px){.sales-order-view-grid{grid-template-columns:1fr}}@media(max-width:640px){.sales-order-view-hero{align-items:flex-start;flex-direction:column}.sales-order-meta{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sales-order-view-page">
+    <section class="sales-order-view-hero">
+        <div><span class="sales-order-view-kicker">Customer Sales Order</span><h1>{{ order.order_number }}</h1><p>Created on {{ order.order_date }}</p></div>
+        <a href="/sales-orders" class="btn-sales-orders-reset"><i class="bi bi-arrow-left"></i><span>Back to Orders</span></a>
+    </section>
+    <div class="sales-order-view-grid">
+        <section class="sales-order-view-card">
+            <h2>Order Details</h2>
+            <div class="sales-order-meta">
+                <div><span>Customer</span><strong>{{ order.customer_name }}</strong></div>
+                <div><span>Approval</span><strong><span class="sales-order-status status-{{ order.status|lower|replace(' ', '-') }}">{{ order.status }}</span></strong></div>
+                <div><span>Customer PO Number</span><strong>{{ order.customer_po_number or "—" }}</strong></div>
+                <div><span>Customer PO Date</span><strong>{{ order.customer_po_date or "—" }}</strong></div>
+                <div><span>Expected Delivery</span><strong>{{ order.expected_delivery_date or "—" }}</strong></div>
+                <div><span>Contact</span><strong>{{ order.customer_mobile or order.customer_email or "—" }}</strong></div>
+            </div>
+            {% if order.notes %}<div class="sales-order-view-notes"><strong>Notes</strong><br>{{ order.notes }}</div>{% endif %}
+            {% if order.document_path %}<a class="sales-order-source-link" href="{{ order.document_path }}" target="_blank"><i class="bi bi-paperclip"></i> View uploaded customer PO</a>{% endif %}
+        </section>
+        <section class="sales-order-view-card"><h2>Order Total</h2><div class="sales-order-view-total"><span>Grand Total</span><strong>&#8377; {{ "%.2f"|format(order.total_amount or 0) }}</strong></div></section>
+    </div>
+    <section class="sales-orders-panel">
+        <div class="sales-orders-panel-header"><div><span class="sales-orders-panel-label">Order Lines</span><h2>Products Ordered</h2></div><span class="sales-orders-record-count">{{ items|length }} Items</span></div>
+        <div class="sales-orders-table-wrap"><table class="sales-orders-table"><thead><tr><th>Product</th><th>Quantity</th><th>Rate</th><th>GST</th><th>Line Total</th><th>Approval</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.product_name }}</strong></td><td>{{ item.quantity }}</td><td>&#8377; {{ "%.2f"|format(item.unit_price or 0) }}</td><td>{{ "%.2f"|format(item.gst_percent or 0) }}%</td><td class="sales-orders-amount-cell">&#8377; {{ "%.2f"|format(item.line_total or 0) }}</td><td><span class="sales-order-item-status item-{{ item.approval_status|lower }}">{{ item.approval_status }}</span></td></tr>{% endfor %}</tbody></table></div>
+    </section>
+</div>
+{% endblock %}

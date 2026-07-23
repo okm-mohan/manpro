@@ -3470,6 +3470,37 @@ def sales_order_add(request: Request):
     return templates.TemplateResponse(request=request, name="sales_order_form.html", context={"request": request, "customers": customers, "products": products, "today": date.today().isoformat(), "order_number": f"SO-{date.today():%Y%m%d}-{int(next_id):03d}"})
 
 
+@app.get("/sales-orders/{order_id}")
+def sales_order_view(request: Request, order_id: int):
+    db = SessionLocal()
+    try:
+        ensure_sales_order_tables(db)
+        order = db.execute(text("""
+            SELECT so.*, COALESCE(NULLIF(c.company_name,''), c.customer_name) AS customer_name,
+                   c.mobile AS customer_mobile, c.email AS customer_email
+            FROM sales_orders so
+            JOIN customers c ON c.id=so.customer_id
+            WHERE so.id=:id
+            LIMIT 1
+        """), {"id": order_id}).mappings().first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Sales order not found.")
+        items = db.execute(text("""
+            SELECT soi.*, p.product_name
+            FROM sales_order_items soi
+            JOIN products p ON p.id=soi.product_id
+            WHERE soi.sales_order_id=:id
+            ORDER BY soi.id
+        """), {"id": order_id}).mappings().all()
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="sales_order_view.html", context={
+        "request": request,
+        "order": dict(order),
+        "items": [dict(item) for item in items],
+    })
+
+
 @app.post("/sales-orders/{order_id}/approve")
 def approve_sales_order(request: Request, order_id: int, from_date: str = Form(""), to_date: str = Form("")):
     """Approve every remaining line on a sales order from the order register."""
