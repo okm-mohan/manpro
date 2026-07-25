@@ -2335,7 +2335,7 @@ def hdfoods_shop_save(
         VALUES (:company_name, :company_name, :mobile, :email, :address, :gst_number, :state, :onboarded_date)
     """), {"company_name": company_name, "mobile": mobile, "email": email, "address": address,
             "gst_number": gst_number, "state": state, "onboarded_date": onboarded_date or date.today().isoformat()})
-db.commit()
+    db.commit()
     db.close()
     return RedirectResponse("/hdfoods/shops", status_code=303)
 
