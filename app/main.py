@@ -2350,6 +2350,30 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
         from_date = (date.today() - timedelta(days=30)).isoformat()
 
     db = SessionLocal()
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS hdfoods_quotations (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            quotation_no VARCHAR(30) NOT NULL UNIQUE,
+            customer_id INT NULL,
+            customer_name VARCHAR(200) NULL,
+            customer_mobile VARCHAR(20) NULL,
+            quotation_date DATE NOT NULL,
+            total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+            subtotal DECIMAL(15,2) NOT NULL DEFAULT 0,
+            tax_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+            status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+            validity_days INT NOT NULL DEFAULT 30,
+            items JSON NULL,
+            created_by VARCHAR(100) NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_quotation_customer (customer_id),
+            INDEX idx_quotation_date (quotation_date),
+            INDEX idx_quotation_status (status)
+        )
+    """))
+    db.commit()
+
     where = ["1=1"]
     params = {}
     if from_date:
