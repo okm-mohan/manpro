@@ -1749,9 +1749,6 @@ def upgrade_plan(request: Request):
 
     if not company:
         return RedirectResponse("/company-enter", status_code=303)
-    if str(company.get("plan_name") or "").strip().lower() == "enterprise":
-        return RedirectResponse("/dashboard", status_code=303)
-
     plans = [
         {
             "name": "Starter", "price": 999, "users": "Up to 10 users",
