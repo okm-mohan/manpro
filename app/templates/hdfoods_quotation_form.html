@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% block page_title %}New Quotation{% endblock %}{% block extra_css %}<link rel="stylesheet" href="/static/css/hdfoods_quotations.css">{% endblock %}{% block content %}
+<main class="quotations-page"><section class="quotations-hero"><div><span>HD FOODS · NEW QUOTATION</span><h1>Create Quotation</h1><p>Select a customer, add items with prices, and send the quotation to your customer.</p></div><a href="/hdfoods/quotations"><i class="bi bi-arrow-left"></i> Back to Quotations</a></section>
+<section class="quotations-card"><header><div><span>QUOTATION FORM</span><h2>New Quotation</h2></div></header>
+<form id="quotForm" method="post" action="/hdfoods/quotations/save" class="quot-form">
+<div class="quot-form-grid">
+<div class="quot-form-group"><label for="customer_id">Customer</label><select id="customer_id" name="customer_id"><option value="">-- Select Customer --</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.company_name or c.customer_name }}</option>{% endfor %}</select></div>
+<div class="quot-form-group"><label for="customer_name">Customer Name (as shown)</label><input type="text" id="customer_name" name="customer_name" placeholder="Enter customer name" required></div>
+<div class="quot-form-group"><label for="customer_mobile">Mobile</label><input type="text" id="customer_mobile" name="customer_mobile" placeholder="Customer mobile number"></div>
+<div class="quot-form-group"><label for="validity_days">Validity (Days)</label><input type="number" id="validity_days" name="validity_days" value="30" min="1" max="365"></div>
+</div>
+<div class="quot-items-section"><h3><i class="bi bi-basket"></i> Quotation Items</h3><div id="itemsContainer"><div class="quot-item-row"><select name="item_id[]" class="quot-item-select"><option value="">-- Select Product --</option>{% for p in products %}<option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.product_name }} ({{ p.sku }}) - ₹ {{ "%.2f"|format(p.price or 0) }}</option>{% endfor %}</select><input type="number" name="quantity[]" class="quot-item-qty" placeholder="Qty" min="1" step="1" value="1"><input type="number" name="rate[]" class="quot-item-rate" placeholder="Rate" min="0" step="0.01" value="0"><span class="quot-item-line-total">₹ 0.00</span><button type="button" class="quot-item-remove" title="Remove item"><i class="bi bi-x-lg"></i></button></div></div><button type="button" id="addItemBtn" class="hd-secondary-action" style="margin-top:10px"><i class="bi bi-plus-lg"></i> Add Item</button></div>
+<div class="quot-summary"><div class="quot-summary-row"><span>Subtotal</span><strong id="subtotalDisplay">₹ 0.00</strong><input type="hidden" name="subtotal" id="subtotalHidden" value="0"></div><div class="quot-summary-row"><span>Tax (GST)</span><strong id="taxDisplay">₹ 0.00</strong><input type="hidden" name="tax_amount" id="taxHidden" value="0"></div><div class="quot-summary-row quot-total-row"><span>Grand Total</span><strong id="totalDisplay">₹ 0.00</strong><input type="hidden" name="grand_total" id="totalHidden" value="0"></div></div>
+<div class="quot-form-actions"><button type="submit" class="hd-primary-action" style="width:auto"><i class="bi bi-save"></i> Save Quotation</button><a href="/hdfoods/quotations" class="hd-secondary-action" style="width:auto"><i class="bi bi-x-lg"></i> Cancel</a></div>
+</form>
+</section></main>
+{% endblock %}{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemsContainer = document.getElementById('itemsContainer');
+    const addBtn = document.getElementById('addItemBtn');
+    function updateLineTotal(row) {
+        const qty = parseFloat(row.querySelector('[name="quantity[]"]').value) || 0;
+        const rate = parseFloat(row.querySelector('[name="rate[]"]').value) || 0;
+        row.querySelector('.quot-item-line-total').textContent = '₹ ' + (qty * rate).toFixed(2);
+        recalcTotals();
+    }
+    function recalcTotals() {
+        let sub = 0;
+        itemsContainer.querySelectorAll('.quot-item-row').forEach(function(row) {
+            const qty = parseFloat(row.querySelector('[name="quantity[]"]').value) || 0;
+            const rate = parseFloat(row.querySelector('[name="rate[]"]').value) || 0;
+            sub += qty * rate;
+        });
+        const tax = sub * 0.00;
+        const total = sub + tax;
+        document.getElementById('subtotalDisplay').textContent = '₹ ' + sub.toFixed(2);
+        document.getElementById('taxDisplay').textContent = '₹ ' + tax.toFixed(2);
+        document.getElementById('totalDisplay').textContent = '₹ ' + total.toFixed(2);
+        document.getElementById('subtotalHidden').value = sub.toFixed(2);
+        document.getElementById('taxHidden').value = tax.toFixed(2);
+        document.getElementById('totalHidden').value = total.toFixed(2);
+    }
+    function removeItem(btn) {
+        const row = btn.closest('.quot-item-row');
+        row.remove();
+        recalcTotals();
+    }
+    addBtn.addEventListener('click', function() {
+        const row = document.createElement('div');
+        row.className = 'quot-item-row';
+        row.innerHTML = '<select name="item_id[]" class="quot-item-select"><option value="">-- Select Product --</option>{% for p in products %}<option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.product_name }} ({{ p.sku }}) - ₹ {{ "%.2f"|format(p.price or 0) }}</option>{% endfor %}</select><input type="number" name="quantity[]" class="quot-item-qty" placeholder="Qty" min="1" step="1" value="1"><input type="number" name="rate[]" class="quot-item-rate" placeholder="Rate" min="0" step="0.01" value="0"><span class="quot-item-line-total">₹ 0.00</span><button type="button" class="quot-item-remove" title="Remove item"><i class="bi bi-x-lg"></i></button>';
+        row.querySelector('.quot-item-remove').addEventListener('click', function() { removeItem(this); });
+        row.querySelectorAll('input').forEach(function(inp) { inp.addEventListener('input', function() { updateLineTotal(row); }); });
+        row.querySelector('select').addEventListener('change', function() {
+            const price = this.selectedOptions[0] ? this.selectedOptions[0].dataset.price : 0;
+            row.querySelector('[name="rate[]"]').value = price;
+            updateLineTotal(row);
+        });
+        itemsContainer.appendChild(row);
+    });
+    itemsContainer.querySelectorAll('.quot-item-remove').forEach(function(btn) { btn.addEventListener('click', function() { removeItem(btn); }); });
+    itemsContainer.querySelectorAll('input').forEach(function(inp) { inp.addEventListener('input', function() { var row = inp.closest('.quot-item-row'); if(row) updateLineTotal(row); }); });
+    itemsContainer.querySelectorAll('select').forEach(function(sel) { sel.addEventListener('change', function() { var row = sel.closest('.quot-item-row'); if(row) updateLineTotal(row); }); });
+});
+</script>
+{% endblock %}
