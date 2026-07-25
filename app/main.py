@@ -2417,7 +2417,7 @@ def hdfoods_quotation_new(request: Request):
         return RedirectResponse("/customers", status_code=303)
     db = SessionLocal()
     customers = db.execute(text("SELECT id, customer_name, company_name, mobile, gst_number FROM customers ORDER BY company_name ASC")).mappings().all()
-    products = db.execute(text("SELECT id, product_name, sku, price FROM products ORDER BY product_name ASC")).mappings().all()
+    products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name ASC")).mappings().all()
     db.close()
     return templates.TemplateResponse(request=request, name="hdfoods_quotation_form.html", context={
         "customers": customers, "products": products, "today": date.today().isoformat(),
@@ -2495,7 +2495,7 @@ def hdfoods_quotation_create(request: Request):
         return RedirectResponse("/customers", status_code=303)
     db = SessionLocal()
     customers = db.execute(text("SELECT id, customer_name, company_name, mobile, gst_number, address FROM customers ORDER BY company_name ASC")).mappings().all()
-    products = db.execute(text("SELECT id, product_name, sku, price FROM products ORDER BY product_name ASC")).mappings().all()
+    products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name ASC")).mappings().all()
     db.close()
     return templates.TemplateResponse(request=request, name="hdfoods_quotation_create.html", context={
         "customers": customers, "products": products,
