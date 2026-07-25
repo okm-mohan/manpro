@@ -2489,6 +2489,91 @@ async def hdfoods_quotation_save(request: Request):
     return RedirectResponse("/hdfoods/quotations", status_code=303)
 
 
+@app.get("/hdfoods/quotations/create")
+def hdfoods_quotation_create(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    db = SessionLocal()
+    customers = db.execute(text("SELECT id, customer_name, company_name, mobile, gst_number, address FROM customers ORDER BY company_name ASC")).mappings().all()
+    products = db.execute(text("SELECT id, product_name, sku, price FROM products ORDER BY product_name ASC")).mappings().all()
+    db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_quotation_create.html", context={
+        "customers": customers, "products": products,
+    })
+
+
+@app.post("/hdfoods/quotations/create/save")
+async def hdfoods_quotation_create_save(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    form = await request.form()
+    customer_id = form.get("customer_id", "")
+    customer_name = form.get("customer_name", "")
+    customer_mobile = form.get("customer_mobile", "")
+    validity_days = form.get("validity_days", "30")
+    discount_pct = form.get("discount_pct", "0")
+    quotation_notes = form.get("quotation_notes", "")
+    items_json = form.get("items", "[]")
+    subtotal = form.get("subtotal", "0")
+    discount_amount = form.get("discount_amount", "0")
+    tax_amount = form.get("tax_amount", "0")
+    grand_total = form.get("grand_total", "0")
+
+    db = SessionLocal()
+    ensure_hdfoods_shop_columns(db)
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS hdfoods_quotations (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                quotation_no VARCHAR(30) NOT NULL UNIQUE,
+                customer_id INT NULL,
+                customer_name VARCHAR(200) NULL,
+                customer_mobile VARCHAR(20) NULL,
+                quotation_date DATE NOT NULL,
+                total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+                subtotal DECIMAL(15,2) NOT NULL DEFAULT 0,
+                discount_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+                discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+                tax_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+                status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+                validity_days INT NOT NULL DEFAULT 30,
+                notes TEXT NULL,
+                items JSON NULL,
+                created_by VARCHAR(100) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_quotation_customer (customer_id),
+                INDEX idx_quotation_date (quotation_date),
+                INDEX idx_quotation_status (status)
+            )
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    q_date = date.today().isoformat()
+    seq = db.execute(text("SELECT COUNT(*) + 1 AS seq FROM hdfoods_quotations WHERE quotation_date = :q_date"), {"q_date": q_date}).scalar() or 1
+    quotation_no = f"QTN-HDF-{date.today().strftime('%Y%m%d')}-{seq:04d}"
+
+    db.execute(text("""
+        INSERT INTO hdfoods_quotations
+        (quotation_no, customer_id, customer_name, customer_mobile, quotation_date,
+         total_amount, subtotal, discount_pct, discount_amount, tax_amount, validity_days, notes, items)
+        VALUES (:quotation_no, :customer_id, :customer_name, :customer_mobile, :quotation_date,
+                :grand_total, :subtotal, :discount_pct, :discount_amount, :tax_amount, :validity_days, :notes, :items)
+    """), {
+        "quotation_no": quotation_no, "customer_id": int(customer_id) if customer_id else None,
+        "customer_name": customer_name, "customer_mobile": customer_mobile,
+        "quotation_date": q_date, "grand_total": grand_total, "subtotal": subtotal,
+        "discount_pct": float(discount_pct or 0), "discount_amount": discount_amount,
+        "tax_amount": tax_amount, "validity_days": int(validity_days or 30),
+        "notes": quotation_notes, "items": items_json,
+    })
+    db.commit()
+    db.close()
+    return RedirectResponse("/hdfoods/quotations", status_code=303)
+
+
 @app.get("/customer/add")
 def customer_add(request: Request):
     db = SessionLocal()
