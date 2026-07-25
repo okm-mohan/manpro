@@ -2386,12 +2386,13 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
         where.append("(quotation_no LIKE :search OR customer_name LIKE :search)")
         params["search"] = f"%{search.strip()}%"
 
-    quotations = db.execute(text("""
+    query = f"""
         SELECT id, quotation_no, customer_name, customer_mobile, quotation_date,
                total_amount, status, validity_days
         FROM hdfoods_quotations WHERE {' AND '.join(where)}
         ORDER BY quotation_date DESC, id DESC
-    """), params).mappings().all()
+    """
+    quotations = db.execute(text(query), params).mappings().all()
 
     totals = db.execute(text("""
         SELECT COUNT(*) AS total,
