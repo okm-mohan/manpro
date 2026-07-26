@@ -2,21 +2,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let current = window.location.pathname.toLowerCase();
 
-    document.querySelectorAll(".menu-list a").forEach(function(link){
-
-        let href = new URL(link.href).pathname.toLowerCase();
-
-        // Dashboard
-        if(current === "/dashboard" && href === "/dashboard"){
-            link.classList.add("active");
-        }
-
-        // Other pages
-        else if(current === href){
-            link.classList.add("active");
-        }
-
+    const matchingMenuLinks = Array.from(document.querySelectorAll(".menu-list a")).filter(function(link){
+        return new URL(link.href).pathname.toLowerCase() === current;
     });
+
+    // A route can appear in more than one menu item. Highlight only the first
+    // matching item so the current page always has one clear active state.
+    if (matchingMenuLinks.length) {
+        matchingMenuLinks[0].classList.add("active");
+    }
 
     // Keep the containing expandable sidebar group open for the active page.
     document.querySelectorAll(".menu-group a.active").forEach(function (link) {
