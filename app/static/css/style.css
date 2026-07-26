@@ -75,6 +75,10 @@ body{
     min-width:0;
 }
 
+/* Compact navigation for the HD Foods field-operations tenant. */
+.sidebar .menu-list li a{font-size:13px;padding-top:10px;padding-bottom:10px}
+.sidebar .menu-heading{font-size:10px;margin-top:16px;margin-bottom:6px}
+
 .topbar{
     height:70px;
     background:white;
