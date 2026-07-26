@@ -2,6 +2,13 @@
 @media(max-width:1050px){.desktop-nav{display:none}.hero{grid-template-columns:1fr;padding-top:60px}.hero-copy{text-align:center}.hero-copy>p,.hero h1{margin-left:auto;margin-right:auto}.hero-actions,.hero-trust{justify-content:center}.hero-visual{max-width:720px;margin:auto;width:100%}.feature-grid{grid-template-columns:repeat(2,1fr)}.module-grid{grid-template-columns:repeat(2,1fr)}.updates-grid{grid-template-columns:repeat(2,1fr)}.access-section{grid-template-columns:1fr;gap:35px}.access-card{max-width:600px;width:100%}}
 @media(max-width:720px){.site-header{height:66px;padding:0 18px}.header-login{padding:9px 11px;font-size:0}.header-login i{font-size:15px;margin:0}.hero{padding:55px 20px;grid-template-columns:1fr}.hero h1{font-size:42px;letter-spacing:-2px}.hero-actions{flex-direction:column}.hero-trust{gap:10px}.hero-visual{display:none}.proof-strip{gap:20px;justify-content:flex-start}.section{padding:72px 20px}.feature-grid,.module-grid,.updates-grid,.pricing-grid{grid-template-columns:1fr}.featured-price{margin:12px 0}.row-heading{display:block}.live-badge{display:inline-block;margin-top:20px}.access-section{padding:65px 20px}.access-copy h2{font-size:32px}.access-copy>div{flex-direction:column;gap:10px}.access-card{padding:24px}.contact-section{padding:55px 20px;display:block;text-align:center}.contact-section h2{font-size:31px}.contact-actions{flex-direction:column;margin-top:27px}footer{padding:50px 22px 24px;grid-template-columns:repeat(2,1fr)}.footer-brand{grid-column:1/-1}}
 
+/* Brand assets supplied for the public ManProAI identity. */
+.brand-mark{background:transparent!important;box-shadow:none!important;flex:0 0 auto;overflow:hidden}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.brand-wordmark{display:block;width:188px;height:50px;overflow:hidden}
+.brand-wordmark img{display:block;width:100%;height:100%;object-fit:contain}
+@media(max-width:720px){.brand-mark{width:48px;height:48px}.brand-wordmark{width:144px;height:40px}}
+
 /* Four per-company subscription plans */
 .pricing-grid{grid-template-columns:repeat(4,1fr);max-width:1280px}
 @media(min-width:721px) and (max-width:1050px){.pricing-grid{grid-template-columns:repeat(2,1fr);max-width:720px}}
