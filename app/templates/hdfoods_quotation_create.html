@@ -1,12 +1,13 @@
-{% extends "base.html" %}{% block page_title %}Create Quotation{% endblock %}{% block extra_css %}<link rel="stylesheet" href="/static/css/hdfoods_quotation_create.css">{% endblock %}{% block content %}
+{% extends "base.html" %}{% block page_title %}Create Quotation{% endblock %}{% block extra_css %}<link rel="stylesheet" href="/static/css/hdfoods_quotation_create.css"><link rel="stylesheet" href="/static/css/hdfoods_quotation_entry_polish.css">{% endblock %}{% block content %}
 <main class="quotations-page"><section class="quotations-hero"><div><span>HD FOODS · CREATE QUOTATION</span><h1>Create Quotation</h1><p>Select a customer, add items with prices, apply discounts, and send the quotation to your customer.</p></div><div><a href="/hdfoods/quotations"><i class="bi bi-arrow-left"></i> Back to Quotations</a> <button type="button" id="printBtn" class="hd-secondary-action"><i class="bi bi-printer"></i> Print</button></div></section>
 <section class="quotations-card"><header><div><span>QUOTATION FORM</span><h2>Create New Quotation</h2></div></header>
 <form id="quotCreateForm" method="post" action="/hdfoods/quotations/create/save" class="quot-form">
+<input type="hidden" name="items" id="itemsJson" value="[]">
 <div class="quot-form-grid">
 <div class="quot-form-group"><label for="customer_id">Customer</label><select id="customer_id" name="customer_id"><option value="">-- Select Customer --</option>{% for c in customers %}<option value="{{ c.id }}" data-name="{{ c.company_name or c.customer_name }}" data-mobile="{{ c.mobile or '' }}" data-gst="{{ c.gst_number or '' }}" data-address="{{ c.address or '' }}">{{ c.company_name or c.customer_name }}</option>{% endfor %}</select></div>
 <div class="quot-form-group"><label for="customer_name">Customer Name (as shown)</label><input type="text" id="customer_name" name="customer_name" placeholder="Enter customer name" required></div>
 <div class="quot-form-group"><label for="customer_mobile">Mobile</label><input type="text" id="customer_mobile" name="customer_mobile" placeholder="Customer mobile number"></div>
-<div class="quot-form-group"><label for="validity_days">Validity (Days)</label><input type="number" id="validity_days" name="validity_days" value="30" min="1" max="365"></div>
+<div class="quot-form-group"><label for="validity_days">Validity (Days)</label><input type="number" id="validity_days" name="validity_days" value="{{ quotation_validity_days }}" min="1" max="365"></div>
 <div class="quot-form-group"><label for="valid_until">Valid Until</label><input type="text" id="valid_until" name="valid_until" readonly></div>
 <div class="quot-form-group"><label for="discount_pct">Discount (%)</label><input type="number" id="discount_pct" name="discount_pct" value="0" min="0" max="100" step="0.01"></div>
 </div>
@@ -43,7 +44,9 @@ itemsContainer.querySelectorAll('.quot-item-remove').forEach(function(btn) { btn
 itemsContainer.querySelectorAll('input').forEach(function(inp) { inp.addEventListener('input', function() { var row = inp.closest('.quot-item-row'); if (row) updateLineTotal(row); }); });
 itemsContainer.querySelectorAll('select').forEach(function(sel) { sel.addEventListener('change', function() { var row = sel.closest('.quot-item-row'); if (row) updateLineTotal(row); }); });
 updateValidUntil();
+document.getElementById('quotCreateForm').addEventListener('submit', function() { var items = []; itemsContainer.querySelectorAll('.quot-item-row').forEach(function(row) { var select = row.querySelector('[name="item_id[]"]'); var product = select.options[select.selectedIndex]; if (!select.value) return; items.push({ id: select.value, name: product ? product.text.split(' - ')[0].trim() : '', description: row.querySelector('[name="item_desc[]"]').value, quantity: parseFloat(row.querySelector('[name="quantity[]"]').value) || 0, rate: parseFloat(row.querySelector('[name="rate[]"]').value) || 0, discount: parseFloat(row.querySelector('[name="discount[]"]').value) || 0 }); }); document.getElementById('itemsJson').value = JSON.stringify(items); });
 });
 document.getElementById('printBtn').addEventListener('click', function() { window.print(); });
 </script>
+<script src="/static/js/hdfoods_quotation_entry_enhancements.js"></script>
 {% endblock %}

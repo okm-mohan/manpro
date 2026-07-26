@@ -18,6 +18,7 @@ import os
 import uuid
 import base64
 import json
+from types import SimpleNamespace
 import re
 import hashlib
 import secrets
@@ -49,7 +50,7 @@ from fastapi.responses import JSONResponse, Response
 from passlib.context import CryptContext
 from io import BytesIO
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
@@ -194,7 +195,6 @@ def ensure_password_recovery_schema(db):
         )
     """))
     db.commit()
-
 
 def password_reset_otp_hash(request_token, otp):
     secret = os.getenv("SESSION_SECRET_KEY", "ManProPlusERP2026@SecretKey")
@@ -879,15 +879,18 @@ async def settings_save(request: Request):
     try:
         digits = max(1, min(int(form.get("sales_invoice_digits") or 6), 12))
         next_number = max(1, int(form.get("sales_invoice_next_number") or 1))
+        quotation_validity_days = max(1, min(int(form.get("hdfoods_quotation_validity_days") or 30), 365))
     except (TypeError, ValueError):
         digits = 6
         next_number = 1
+        quotation_validity_days = 30
 
     if "{NUMBER}" not in invoice_format or len(invoice_format) > 80:
         posted_settings = {
             "sales_invoice_format": invoice_format,
             "sales_invoice_digits": str(digits),
             "sales_invoice_next_number": str(next_number),
+            "hdfoods_quotation_validity_days": str(quotation_validity_days),
             **{
                 f"screen.{key}": "1" if form.get(f"screen_{key}") else "0"
                 for key in SCREEN_DEFINITIONS
@@ -910,6 +913,7 @@ async def settings_save(request: Request):
         "sales_invoice_format": invoice_format,
         "sales_invoice_digits": str(digits),
         "sales_invoice_next_number": str(next_number),
+        "hdfoods_quotation_validity_days": str(quotation_validity_days),
         **{
             f"screen.{key}": "1" if form.get(f"screen_{key}") else "0"
             for key in SCREEN_DEFINITIONS
@@ -2374,6 +2378,13 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
     """))
     db.commit()
 
+    db.execute(text("""
+        UPDATE hdfoods_quotations SET status = 'Ignored'
+        WHERE status = 'Pending'
+          AND DATE_ADD(quotation_date, INTERVAL validity_days DAY) < CURDATE()
+    """))
+    db.commit()
+
     where = ["1=1"]
     params = {}
     if from_date:
@@ -2399,6 +2410,7 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
                SUM(status='Pending') AS pending,
                SUM(status='Accepted') AS accepted,
                SUM(status='Declined') AS declined,
+               SUM(status='Ignored') AS ignored,
                COALESCE(SUM(total_amount),0) AS total_value
         FROM hdfoods_quotations
     """)).mappings().one()
@@ -2407,7 +2419,7 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
         "quotations": quotations, "from_date": from_date, "to_date": to_date,
         "search": search, "total_quotations": totals["total"],
         "pending_count": totals["pending"], "accepted_count": totals["accepted"],
-        "declined_count": totals["declined"], "total_value": totals["total_value"],
+        "declined_count": totals["declined"], "ignored_count": totals["ignored"], "total_value": totals["total_value"],
     })
 
 
@@ -2415,13 +2427,7 @@ def hdfoods_quotations(request: Request, from_date: str = "", to_date: str = "",
 def hdfoods_quotation_new(request: Request):
     if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
         return RedirectResponse("/customers", status_code=303)
-    db = SessionLocal()
-    customers = db.execute(text("SELECT id, customer_name, company_name, mobile, gst_number FROM customers ORDER BY company_name ASC")).mappings().all()
-    products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name ASC")).mappings().all()
-    db.close()
-    return templates.TemplateResponse(request=request, name="hdfoods_quotation_form.html", context={
-        "customers": customers, "products": products, "today": date.today().isoformat(),
-    })
+    return RedirectResponse("/hdfoods/quotations/create", status_code=303)
 
 
 @app.post("/hdfoods/quotations/save")
@@ -2496,9 +2502,11 @@ def hdfoods_quotation_create(request: Request):
     db = SessionLocal()
     customers = db.execute(text("SELECT id, customer_name, company_name, mobile, gst_number, address FROM customers ORDER BY company_name ASC")).mappings().all()
     products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name ASC")).mappings().all()
+    settings = load_company_settings(db)
     db.close()
     return templates.TemplateResponse(request=request, name="hdfoods_quotation_create.html", context={
         "customers": customers, "products": products,
+        "quotation_validity_days": settings.get("hdfoods_quotation_validity_days", "30"),
     })
 
 
@@ -2572,6 +2580,41 @@ async def hdfoods_quotation_create_save(request: Request):
     db.commit()
     db.close()
     return RedirectResponse("/hdfoods/quotations", status_code=303)
+
+
+@app.post("/hdfoods/quotations/{quotation_id}/status")
+async def hdfoods_quotation_status(request: Request, quotation_id: int):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    form = await request.form()
+    status = str(form.get("status") or "Pending").strip().title()
+    if status not in {"Pending", "Accepted", "Declined"}:
+        raise HTTPException(status_code=400, detail="Invalid quotation status")
+    db = SessionLocal()
+    db.execute(text("UPDATE hdfoods_quotations SET status = :status WHERE id = :id"), {"status": status, "id": quotation_id})
+    db.commit()
+    db.close()
+    return RedirectResponse("/hdfoods/quotations", status_code=303)
+
+
+@app.get("/hdfoods/quotations/{quotation_id}/print")
+def hdfoods_quotation_print(request: Request, quotation_id: int, download: int = 0):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/customers", status_code=303)
+    db = SessionLocal()
+    quotation_row = db.execute(text("SELECT * FROM hdfoods_quotations WHERE id = :id"), {"id": quotation_id}).mappings().first()
+    db.close()
+    if not quotation_row:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    quotation = dict(quotation_row)
+    try:
+        quotation["items"] = json.loads(quotation.get("items") or "[]")
+    except (TypeError, json.JSONDecodeError):
+        quotation["items"] = []
+    quotation = SimpleNamespace(**quotation)
+    return templates.TemplateResponse(request=request, name="hdfoods_quotation_print.html", context={
+        "quotation": quotation, "auto_print": bool(download),
+    })
 
 
 @app.get("/customer/add")
@@ -3799,23 +3842,311 @@ def hdfoods_orders(request: Request, from_date: str = "", to_date: str = ""):
     from_date = from_date or (date.today() - timedelta(days=30)).isoformat()
     to_date = to_date or date.today().isoformat()
     db = SessionLocal()
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_live_orders (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY, order_number VARCHAR(40) NOT NULL UNIQUE,
+        customer_id INT NOT NULL, product_id INT NOT NULL, quantity DECIMAL(12,2) NOT NULL,
+        unit_price DECIMAL(14,2) NOT NULL DEFAULT 0, total_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+        delivery_date DATE NULL, delivery_time TIME NULL, delivery_mode VARCHAR(20) NOT NULL DEFAULT 'Daily',
+        status VARCHAR(30) NOT NULL DEFAULT 'Ordered', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )"""))
     try:
-        ensure_sales_order_tables(db)
-        orders = db.execute(text("""
-            SELECT so.*, COALESCE(NULLIF(c.company_name,''), c.customer_name) AS customer_name, c.mobile AS customer_mobile
-            FROM sales_orders so JOIN customers c ON c.id=so.customer_id
-            WHERE so.order_date BETWEEN :from_date AND :to_date
-            ORDER BY so.order_date DESC, so.id DESC
-        """), {"from_date": from_date, "to_date": to_date}).mappings().all()
-    finally:
-        db.close()
+        db.execute(text("ALTER TABLE hdfoods_live_orders ADD COLUMN gst_percent DECIMAL(7,2) NOT NULL DEFAULT 0"))
+        db.commit()
+    except Exception:
+        db.rollback()
+    db.commit()
+    orders = db.execute(text("""SELECT o.*, COALESCE(NULLIF(c.company_name,''), c.customer_name) customer_name,
+        c.mobile customer_mobile, p.product_name FROM hdfoods_live_orders o
+        JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id
+        WHERE DATE(o.created_at) BETWEEN :from_date AND :to_date ORDER BY o.id DESC"""), {"from_date": from_date, "to_date": to_date}).mappings().all()
+    customers = db.execute(text("SELECT id, COALESCE(NULLIF(company_name,''),customer_name) name FROM customers ORDER BY name")).mappings().all()
+    products = db.execute(text("SELECT id, product_name, COALESCE(NULLIF(sale_price,0),purchase_price,0) price FROM products ORDER BY product_name")).mappings().all()
+    db.close()
     order_rows = [dict(order) for order in orders]
     return templates.TemplateResponse(request=request, name="hdfoods_orders.html", context={
         "orders": order_rows, "from_date": from_date, "to_date": to_date,
         "order_count": len(order_rows), "order_amount": sum(float(o.get("total_amount") or 0) for o in order_rows),
-        "pending_count": sum(o.get("status") == "Pending Approval" for o in order_rows),
-        "approved_count": sum(o.get("status") == "Approved" for o in order_rows),
+        "pending_count": sum(o.get("status") == "Pending Delivery" for o in order_rows),
+        "approved_count": sum(o.get("status") == "Delivered" for o in order_rows),
+        "customers": customers, "products": products,
     })
+
+
+@app.post("/hdfoods/orders/create")
+async def hdfoods_live_order_create(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/sales-orders", status_code=303)
+    form = await request.form()
+    customer_id, product_id = int(form.get("customer_id")), int(form.get("product_id"))
+    quantity, price = float(form.get("quantity") or 0), float(form.get("unit_price") or 0)
+    gst_percent = float(form.get("gst_percent") or 0) if form.get("gst_enabled") else 0
+    if quantity <= 0: raise HTTPException(status_code=400, detail="Quantity must be greater than zero")
+    db = SessionLocal()
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_live_orders (id BIGINT AUTO_INCREMENT PRIMARY KEY, order_number VARCHAR(40) NOT NULL UNIQUE, customer_id INT NOT NULL, product_id INT NOT NULL, quantity DECIMAL(12,2) NOT NULL, unit_price DECIMAL(14,2) NOT NULL DEFAULT 0, total_amount DECIMAL(14,2) NOT NULL DEFAULT 0, delivery_date DATE NULL, delivery_time TIME NULL, delivery_mode VARCHAR(40) NOT NULL DEFAULT 'Daily', status VARCHAR(30) NOT NULL DEFAULT 'Ordered', gst_percent DECIMAL(7,2) NOT NULL DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    next_id = db.execute(text("SELECT COALESCE(MAX(id),0)+1 FROM hdfoods_live_orders")).scalar()
+    db.execute(text("""INSERT INTO hdfoods_live_orders (order_number,customer_id,product_id,quantity,unit_price,total_amount,delivery_date,delivery_time,delivery_mode,gst_percent) VALUES (:n,:c,:p,:q,:u,:t,:d,:time,:m,:g)"""), {"n":f"HDF-{date.today():%Y%m%d}-{int(next_id):04d}","c":customer_id,"p":product_id,"q":quantity,"u":price,"t":quantity*price*(1+gst_percent/100),"d":form.get("delivery_date") or None,"time":form.get("delivery_time") or None,"m":form.get("delivery_mode") or "Daily","g":gst_percent})
+    db.commit(); db.close()
+    return RedirectResponse("/hdfoods/orders", status_code=303)
+
+
+@app.post("/hdfoods/orders/{order_id}/status")
+async def hdfoods_live_order_status(request: Request, order_id: int):
+    form = await request.form(); status = str(form.get("status") or "Ordered")
+    if status not in {"Ordered","Pending Delivery","Delivered","Payment Settled"}: raise HTTPException(status_code=400)
+    db=SessionLocal(); db.execute(text("UPDATE hdfoods_live_orders SET status=:s WHERE id=:id"),{"s":status,"id":order_id}); db.commit(); db.close()
+    return RedirectResponse("/hdfoods/orders", status_code=303)
+
+
+@app.get("/hdfoods/delivery-status")
+def hdfoods_delivery_status(request: Request, month: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales", status_code=303)
+    try: view_month = datetime.strptime(month, "%Y-%m").date().replace(day=1) if month else date.today().replace(day=1)
+    except ValueError: view_month = date.today().replace(day=1)
+    days_in_month = calendar.monthrange(view_month.year, view_month.month)[1]
+    month_end = view_month.replace(day=days_in_month)
+    db=SessionLocal()
+    try:
+        db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_delivery_placements (id BIGINT AUTO_INCREMENT PRIMARY KEY, source_order_id BIGINT NOT NULL, scheduled_date DATE NOT NULL, created_order_id BIGINT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY unique_delivery_placement (source_order_id,scheduled_date))""")); db.commit()
+        placed = {(row["source_order_id"], row["scheduled_date"].isoformat()) for row in db.execute(text("SELECT source_order_id,scheduled_date FROM hdfoods_delivery_placements")).mappings().all()}
+        orders=db.execute(text("""SELECT o.*,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,c.mobile,p.product_name FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.delivery_date IS NOT NULL AND o.delivery_mode <> 'One Time' AND o.status NOT IN ('Payment Settled')""")).mappings().all()
+    finally: db.close()
+    schedule={}
+    def interval(mode):
+        return {"Daily":1,"Weekly":7,"15 Days":15,"30 Days":30}.get(str(mode), int(re.search(r'\d+',str(mode)).group()) if re.search(r'\d+',str(mode)) else 1)
+    for order in orders:
+        base=order["delivery_date"]; step=interval(order["delivery_mode"]); due=base
+        while due < view_month: due += timedelta(days=step)
+        while due <= month_end:
+            if (order["id"], due.isoformat()) not in placed: schedule.setdefault(due.isoformat(),[]).append({"source_order_id":order["id"],"customer_id":order["customer_id"],"customer_name":order["customer_name"],"product_name":order["product_name"],"quantity":float(order["quantity"])})
+            due += timedelta(days=step)
+    timeline=[]
+    for offset in range(8):
+        day=date.today()+timedelta(days=offset); entries=schedule.get(day.isoformat(),[])
+        if entries: timeline.append({"date":day,"label":"Today" if offset==0 else "Tomorrow" if offset==1 else day.strftime("%A"),"orders":entries})
+    weeks=calendar.Calendar(firstweekday=0).monthdatescalendar(view_month.year,view_month.month)
+    previous_month = (view_month - timedelta(days=1)).strftime("%Y-%m")
+    next_month = (view_month.replace(day=28) + timedelta(days=4)).replace(day=1).strftime("%Y-%m")
+    return templates.TemplateResponse(request=request,name="hdfoods_delivery_status.html",context={"view_month":view_month,"weeks":weeks,"schedule":schedule,"timeline":timeline,"today":date.today(),"previous_month":previous_month,"next_month":next_month,"timedelta":timedelta})
+
+
+@app.post("/hdfoods/delivery-status/place-order")
+async def hdfoods_place_scheduled_order(request: Request):
+    data = await request.json()
+    try: scheduled_date = datetime.strptime(str(data.get("scheduled_date")), "%Y-%m-%d").date(); source_ids = [int(x) for x in data.get("source_ids", [])]
+    except (ValueError, TypeError): raise HTTPException(status_code=400, detail="Invalid scheduled order.")
+    if scheduled_date != date.today() or not source_ids: raise HTTPException(status_code=400, detail="Orders can only be placed on their scheduled date.")
+    db=SessionLocal()
+    try:
+        db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_delivery_placements (id BIGINT AUTO_INCREMENT PRIMARY KEY, source_order_id BIGINT NOT NULL, scheduled_date DATE NOT NULL, created_order_id BIGINT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY unique_delivery_placement (source_order_id,scheduled_date))"""))
+        source_sql = ",".join(str(value) for value in source_ids)
+        sources=db.execute(text(f"SELECT * FROM hdfoods_live_orders WHERE id IN ({source_sql})")).mappings().all()
+        for source in sources:
+            exists=db.execute(text("SELECT id FROM hdfoods_delivery_placements WHERE source_order_id=:id AND scheduled_date=:date"),{"id":source["id"],"date":scheduled_date}).scalar()
+            if exists: continue
+            next_id=db.execute(text("SELECT COALESCE(MAX(id),0)+1 FROM hdfoods_live_orders")).scalar()
+            result=db.execute(text("""INSERT INTO hdfoods_live_orders (order_number,customer_id,product_id,quantity,unit_price,total_amount,delivery_date,delivery_time,delivery_mode,gst_percent,status) VALUES (:n,:c,:p,:q,:u,:t,:d,:time,'One Time',:g,'Ordered')"""),{"n":f"HDF-{date.today():%Y%m%d}-{int(next_id):04d}","c":source["customer_id"],"p":source["product_id"],"q":source["quantity"],"u":source["unit_price"],"t":source["total_amount"],"d":scheduled_date,"time":source["delivery_time"],"g":source.get("gst_percent",0)})
+            db.execute(text("INSERT INTO hdfoods_delivery_placements (source_order_id,scheduled_date,created_order_id) VALUES (:source,:date,:created)"),{"source":source["id"],"date":scheduled_date,"created":result.lastrowid})
+        db.commit(); return {"ok":True}
+    finally: db.close()
+
+
+@app.post("/hdfoods/orders/{order_id}/mode")
+async def hdfoods_live_order_mode(request: Request, order_id: int):
+    form = await request.form(); mode = str(form.get("delivery_mode") or "Daily").strip()[:40]
+    if not mode: raise HTTPException(status_code=400)
+    db=SessionLocal(); db.execute(text("UPDATE hdfoods_live_orders SET delivery_mode=:m WHERE id=:id"),{"m":mode,"id":order_id}); db.commit(); db.close()
+    return RedirectResponse("/hdfoods/orders", status_code=303)
+
+
+@app.get("/hdfoods/billing")
+def hdfoods_billing(request: Request, from_date: str = "", to_date: str = "", customer_id: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales", status_code=303)
+    if not from_date: from_date = (date.today() - timedelta(days=30)).isoformat()
+    if not to_date: to_date = date.today().isoformat()
+    db=SessionLocal()
+    _hdfoods_invoice_tables(db)
+    where, params = ["1=1"], {}
+    if from_date: where.append("i.invoice_date >= :from_date"); params["from_date"] = from_date
+    if to_date: where.append("i.invoice_date <= :to_date"); params["to_date"] = to_date
+    if customer_id: where.append("i.customer_id = :customer_id"); params["customer_id"] = int(customer_id)
+    invoices = db.execute(text(f"""SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,i.gst_percent,i.payment_status,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,o.order_number FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id LEFT JOIN hdfoods_live_orders o ON o.id=i.order_id WHERE {' AND '.join(where)} ORDER BY i.invoice_date DESC,i.id DESC"""), params).mappings().all()
+    customers=db.execute(text("SELECT id,COALESCE(NULLIF(company_name,''),customer_name) AS customer_name FROM customers ORDER BY customer_name")).mappings().all()
+    db.close()
+    return templates.TemplateResponse(request=request,name="hdfoods_billing_list.html",context={"invoices":invoices,"customers":customers,"from_date":from_date,"to_date":to_date,"customer_id":str(customer_id)})
+
+
+@app.get("/hdfoods/billing/new")
+def hdfoods_billing_new(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales", status_code=303)
+    db=SessionLocal()
+    _hdfoods_invoice_tables(db)
+    orders=db.execute(text("""SELECT o.id,o.order_number,o.customer_id,o.product_id,o.quantity,o.unit_price,o.total_amount,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.status IN ('Delivered','Payment Settled') ORDER BY o.id DESC""")).mappings().all()
+    customers=db.execute(text("SELECT id,COALESCE(NULLIF(company_name,''),customer_name) AS customer_name FROM customers ORDER BY customer_name")).mappings().all()
+    products=db.execute(text("SELECT id,product_name,COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name")).mappings().all()
+    next_id=db.execute(text("SELECT COALESCE(MAX(id),0)+1 FROM hdfoods_invoices")).scalar(); db.close()
+    return templates.TemplateResponse(request=request,name="hdfoods_billing.html",context={"orders":orders,"customers":customers,"products":products,"invoice_no":f"HDF-INV-{date.today():%Y%m%d}-{int(next_id):04d}","today":date.today().isoformat(),"edit_invoice":None,"edit_items":[]})
+
+
+def _hdfoods_invoice_tables(db):
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_invoices (id BIGINT AUTO_INCREMENT PRIMARY KEY, invoice_no VARCHAR(40) UNIQUE, invoice_date DATE NOT NULL, order_id BIGINT NULL, customer_id INT NOT NULL, subtotal DECIMAL(14,2) NOT NULL, gst_percent DECIMAL(7,2) NOT NULL DEFAULT 0, gst_amount DECIMAL(14,2) NOT NULL DEFAULT 0, total_amount DECIMAL(14,2) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_invoice_items (id BIGINT AUTO_INCREMENT PRIMARY KEY, invoice_id BIGINT NOT NULL, product_name VARCHAR(255) NOT NULL, quantity DECIMAL(14,2) NOT NULL, unit_price DECIMAL(14,2) NOT NULL, line_total DECIMAL(14,2) NOT NULL)"""))
+    columns = {row[0] for row in db.execute(text("SHOW COLUMNS FROM hdfoods_invoices")).all()}
+    if "payment_status" not in columns: db.execute(text("ALTER TABLE hdfoods_invoices ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'Unpaid'"))
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_invoice_payments (id BIGINT AUTO_INCREMENT PRIMARY KEY, invoice_id BIGINT NOT NULL, payment_date DATE NOT NULL, amount DECIMAL(14,2) NOT NULL, payment_mode VARCHAR(40) NOT NULL, reference_no VARCHAR(100) NULL, notes VARCHAR(500) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    db.commit()
+
+
+@app.post("/hdfoods/invoices")
+async def hdfoods_invoice_save(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        raise HTTPException(status_code=403, detail="HD Foods billing is not available for this company.")
+    data = await request.json()
+    items = data.get("items") or []
+    customer_name = str(data.get("customer_name") or "").strip()
+    if not customer_name or not items:
+        raise HTTPException(status_code=400, detail="Customer and at least one item are required.")
+    clean_items = []
+    try:
+        for item in items:
+            name = str(item.get("product_name") or "").strip()
+            qty, price = float(item.get("quantity")), float(item.get("unit_price"))
+            if not name or qty <= 0 or price < 0: raise ValueError
+            clean_items.append((name, qty, price, qty * price))
+        invoice_date = datetime.strptime(str(data.get("invoice_date")), "%Y-%m-%d").date()
+        gst_percent = float(data.get("gst_percent") or 0)
+        if not 0 <= gst_percent <= 100: raise ValueError
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Please enter valid item quantities, prices, date and GST.")
+    db = SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db)
+        invoice_id = int(data["invoice_id"]) if data.get("invoice_id") else None
+        order_id = int(data["order_id"]) if data.get("order_id") else None
+        customer = None
+        if order_id:
+            customer = db.execute(text("SELECT customer_id FROM hdfoods_live_orders WHERE id=:id"), {"id": order_id}).mappings().first()
+        if not customer:
+            customer = db.execute(text("SELECT id FROM customers WHERE COALESCE(NULLIF(company_name,''),customer_name)=:name LIMIT 1"), {"name": customer_name}).mappings().first()
+        if not customer: raise HTTPException(status_code=400, detail="Choose a delivered order or enter an existing customer name.")
+        subtotal = sum(x[3] for x in clean_items); gst_amount = subtotal * gst_percent / 100; total = subtotal + gst_amount
+        invoice_no = str(data.get("invoice_no") or "").strip()
+        if not invoice_no: raise HTTPException(status_code=400, detail="Invoice number is required.")
+        existing_no = db.execute(text("SELECT id FROM hdfoods_invoices WHERE invoice_no=:no LIMIT 1"), {"no": invoice_no}).scalar()
+        if existing_no and existing_no != invoice_id:
+            raise HTTPException(status_code=409, detail="This invoice number has already been saved. Refresh the billing page to create a new invoice.")
+        values = {"no": invoice_no, "dt": invoice_date, "order_id": order_id, "customer_id": customer["customer_id"] if "customer_id" in customer else customer["id"], "subtotal": subtotal, "gst_percent": gst_percent, "gst_amount": gst_amount, "total": total}
+        if invoice_id:
+            if not db.execute(text("SELECT id FROM hdfoods_invoices WHERE id=:id"), {"id": invoice_id}).scalar(): raise HTTPException(status_code=404, detail="Invoice not found.")
+            db.execute(text("""UPDATE hdfoods_invoices SET invoice_no=:no,invoice_date=:dt,order_id=:order_id,customer_id=:customer_id,subtotal=:subtotal,gst_percent=:gst_percent,gst_amount=:gst_amount,total_amount=:total WHERE id=:id"""), {**values, "id": invoice_id})
+            db.execute(text("DELETE FROM hdfoods_invoice_items WHERE invoice_id=:id"), {"id": invoice_id})
+        else:
+            result = db.execute(text("""INSERT INTO hdfoods_invoices (invoice_no,invoice_date,order_id,customer_id,subtotal,gst_percent,gst_amount,total_amount) VALUES (:no,:dt,:order_id,:customer_id,:subtotal,:gst_percent,:gst_amount,:total)"""), values)
+            invoice_id = result.lastrowid
+        for name, qty, price, line_total in clean_items:
+            db.execute(text("INSERT INTO hdfoods_invoice_items (invoice_id,product_name,quantity,unit_price,line_total) VALUES (:invoice_id,:name,:qty,:price,:line_total)"), {"invoice_id": invoice_id, "name": name, "qty": qty, "price": price, "line_total": line_total})
+        db.commit()
+        return {"id": invoice_id, "invoice_no": invoice_no}
+    except HTTPException:
+        db.rollback(); raise
+    except Exception as exc:
+        db.rollback(); logger.exception("Unable to save HD Foods invoice")
+        raise HTTPException(status_code=500, detail="Unable to save invoice.") from exc
+    finally: db.close()
+
+
+@app.get("/hdfoods/collections")
+def hdfoods_collections(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales", status_code=303)
+    db = SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db)
+        invoices = db.execute(text("""SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,i.order_id,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,COALESCE(p.received,0) received, i.total_amount-COALESCE(p.received,0) balance FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id LEFT JOIN (SELECT invoice_id,SUM(amount) received FROM hdfoods_invoice_payments GROUP BY invoice_id) p ON p.invoice_id=i.id WHERE i.total_amount > COALESCE(p.received,0) ORDER BY i.invoice_date,i.id""")).mappings().all()
+        receipts = db.execute(text("""SELECT p.payment_date,p.amount,p.payment_mode,p.reference_no,i.invoice_no,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id JOIN customers c ON c.id=i.customer_id ORDER BY p.id DESC LIMIT 12""")).mappings().all()
+        return templates.TemplateResponse(request=request,name="hdfoods_collections.html",context={"invoices":invoices,"receipts":receipts,"today":date.today().isoformat()})
+    finally: db.close()
+
+
+@app.get("/hdfoods/invoices/{invoice_id}/collection-data")
+def hdfoods_collection_data(request: Request, invoice_id: int):
+    db = SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db)
+        row = db.execute(text("""SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,i.order_id,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,c.address,c.mobile,COALESCE(p.received,0) received FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id LEFT JOIN (SELECT invoice_id,SUM(amount) received FROM hdfoods_invoice_payments GROUP BY invoice_id) p ON p.invoice_id=i.id WHERE i.id=:id"""), {"id": invoice_id}).mappings().first()
+        if not row: raise HTTPException(status_code=404, detail="Invoice not found.")
+        return {"invoice_no":row["invoice_no"],"customer_name":row["customer_name"],"invoice_date":row["invoice_date"].isoformat(),"total":float(row["total_amount"]),"received":float(row["received"]),"balance":float(row["total_amount"]-row["received"]),"address":row["address"] or "","mobile":row["mobile"] or ""}
+    finally: db.close()
+
+
+@app.post("/hdfoods/collections")
+async def hdfoods_collection_save(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": raise HTTPException(status_code=403)
+    data = await request.json()
+    try:
+        invoice_id=int(data.get("invoice_id")); amount=float(data.get("amount")); payment_date=datetime.strptime(str(data.get("payment_date")), "%Y-%m-%d").date()
+        if amount <= 0: raise ValueError
+    except (TypeError, ValueError): raise HTTPException(status_code=400, detail="Select an invoice and enter a valid received amount.")
+    db=SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db)
+        invoice=db.execute(text("SELECT id,order_id,total_amount FROM hdfoods_invoices WHERE id=:id FOR UPDATE"),{"id":invoice_id}).mappings().first()
+        if not invoice: raise HTTPException(status_code=404,detail="Invoice not found.")
+        received=float(db.execute(text("SELECT COALESCE(SUM(amount),0) FROM hdfoods_invoice_payments WHERE invoice_id=:id"),{"id":invoice_id}).scalar() or 0)
+        balance=float(invoice["total_amount"])-received
+        if abs(amount-balance) > .009: raise HTTPException(status_code=400,detail=f"Clear the full outstanding amount of ₹ {balance:,.2f} for this invoice.")
+        db.execute(text("INSERT INTO hdfoods_invoice_payments (invoice_id,payment_date,amount,payment_mode,reference_no,notes) VALUES (:invoice_id,:payment_date,:amount,:mode,:reference,:notes)"),{"invoice_id":invoice_id,"payment_date":payment_date,"amount":amount,"mode":str(data.get("payment_mode") or "Cash"),"reference":str(data.get("reference_no") or ""),"notes":str(data.get("notes") or "")})
+        db.execute(text("UPDATE hdfoods_invoices SET payment_status='Paid' WHERE id=:id"),{"id":invoice_id})
+        if invoice["order_id"]: db.execute(text("UPDATE hdfoods_live_orders SET status='Payment Settled' WHERE id=:id"),{"id":invoice["order_id"]})
+        db.commit(); return {"ok":True}
+    except HTTPException: db.rollback(); raise
+    except Exception as exc: db.rollback(); logger.exception("Unable to save HD Foods collection"); raise HTTPException(status_code=500,detail="Unable to record payment.") from exc
+    finally: db.close()
+
+
+def _hdfoods_invoice_data(db, invoice_id):
+    invoice = db.execute(text("""SELECT i.*, COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name, c.address customer_address, c.mobile customer_mobile, c.gst_number customer_gst, o.order_number FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id LEFT JOIN hdfoods_live_orders o ON o.id=i.order_id WHERE i.id=:id"""), {"id": invoice_id}).mappings().first()
+    if not invoice: raise HTTPException(status_code=404, detail="Invoice not found.")
+    items = db.execute(text("SELECT product_name,quantity,unit_price,line_total FROM hdfoods_invoice_items WHERE invoice_id=:id ORDER BY id"), {"id": invoice_id}).mappings().all()
+    return invoice, items
+
+
+@app.get("/hdfoods/invoices/{invoice_id}/edit")
+def hdfoods_invoice_edit(request: Request, invoice_id: int):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales", status_code=303)
+    db=SessionLocal(); _hdfoods_invoice_tables(db)
+    try:
+        invoice, edit_items = _hdfoods_invoice_data(db, invoice_id)
+        edit_items = [{"product_name": row["product_name"], "quantity": float(row["quantity"]), "unit_price": float(row["unit_price"])} for row in edit_items]
+        orders=db.execute(text("""SELECT o.id,o.order_number,o.customer_id,o.product_id,o.quantity,o.unit_price,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.status IN ('Delivered','Payment Settled') ORDER BY o.id DESC""")).mappings().all()
+        customers=db.execute(text("SELECT id,COALESCE(NULLIF(company_name,''),customer_name) AS customer_name FROM customers ORDER BY customer_name")).mappings().all()
+        products=db.execute(text("SELECT id,product_name,COALESCE(NULLIF(sale_price,0),purchase_price,0) AS price FROM products ORDER BY product_name")).mappings().all()
+        return templates.TemplateResponse(request=request,name="hdfoods_billing.html",context={"orders":orders,"customers":customers,"products":products,"invoice_no":invoice["invoice_no"],"today":invoice["invoice_date"].isoformat(),"edit_invoice":invoice,"edit_items":edit_items})
+    finally: db.close()
+
+
+@app.get("/hdfoods/invoices/{invoice_id}/print", response_class=HTMLResponse)
+def hdfoods_invoice_print(request: Request, invoice_id: int, autoprint: int = 0):
+    db = SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db); invoice, items = _hdfoods_invoice_data(db, invoice_id)
+        company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first() or {}
+        return templates.TemplateResponse(request=request, name="hdfoods_invoice_print.html", context={"invoice": invoice, "items": items, "company": company, "autoprint": bool(autoprint)})
+    finally: db.close()
+
+
+@app.get("/hdfoods/invoices/{invoice_id}/pdf")
+def hdfoods_invoice_pdf(request: Request, invoice_id: int):
+    db = SessionLocal()
+    try:
+        _hdfoods_invoice_tables(db); invoice, items = _hdfoods_invoice_data(db, invoice_id)
+    finally: db.close()
+    output = BytesIO(); doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=16*mm, bottomMargin=16*mm)
+    styles = getSampleStyleSheet(); title = ParagraphStyle("invoice-title", parent=styles["Title"], textColor=colors.HexColor("#075f52"), fontSize=22, leading=26); right = ParagraphStyle("right", parent=styles["Normal"], alignment=TA_RIGHT)
+    story = [Paragraph("HD FOODS", title), Paragraph("TAX INVOICE", styles["Heading2"]), Spacer(1, 5*mm), Table([[Paragraph(f"<b>Bill To</b><br/>{escape(str(invoice['customer_name']))}", styles["Normal"]), Paragraph(f"<b>Invoice No:</b> {escape(str(invoice['invoice_no']))}<br/><b>Date:</b> {invoice['invoice_date']:%d-%m-%Y}<br/><b>Order Ref:</b> {escape(str(invoice['order_number'] or '—'))}", right)]], colWidths=[85*mm, 85*mm]), Spacer(1, 7*mm)]
+    table_data = [["#", "Product / Description", "Qty", "Rate", "Amount"]] + [[str(i + 1), x["product_name"], f"{float(x['quantity']):.2f}", f"Rs. {float(x['unit_price']):,.2f}", f"Rs. {float(x['line_total']):,.2f}"] for i, x in enumerate(items)]
+    table = Table(table_data, colWidths=[12*mm, 77*mm, 22*mm, 30*mm, 34*mm]); table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#075f52")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("ALIGN",(2,1),(-1,-1),"RIGHT"),("GRID",(0,0),(-1,-1),.35,colors.HexColor("#cbd9d4")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#f7fcfa")]),("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8)])); story += [table, Spacer(1, 6*mm)]
+    totals = [["Subtotal", f"Rs. {float(invoice['subtotal']):,.2f}"], [f"GST ({float(invoice['gst_percent']):g}%)", f"Rs. {float(invoice['gst_amount']):,.2f}"], ["Grand Total", f"Rs. {float(invoice['total_amount']):,.2f}"]]; totals_table = Table(totals, colWidths=[42*mm, 38*mm], hAlign="RIGHT"); totals_table.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"RIGHT"),("LINEABOVE",(0,2),(-1,2),1,colors.HexColor("#075f52")),("FONTNAME",(0,2),(-1,2),"Helvetica-Bold"),("FONTSIZE",(0,2),(-1,2),13),("TEXTCOLOR",(0,2),(-1,2),colors.HexColor("#075f52")),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)])); story += [totals_table, Spacer(1, 18*mm), Paragraph("This is a computer-generated tax invoice.", ParagraphStyle("foot", parent=styles["Normal"], alignment=TA_CENTER, textColor=colors.HexColor("#64748b")))]
+    doc.build(story); output.seek(0)
+    return Response(content=output.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{invoice["invoice_no"]}.pdf"'})
 
 
 @app.get("/hdfoods/shop-map")

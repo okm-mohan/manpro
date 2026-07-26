@@ -71,46 +71,18 @@
             </div>
         </section>
 
+        {% if request.session.get('tenant_company_code', '')|upper == 'HDFOODS' %}
         <section class="settings-panel">
             <div class="settings-panel-header">
                 <div>
-                    <span>Navigation & Access</span>
-                    <h2>Screen On / Off</h2>
-                    <p>Off screens are removed from the sidebar and cannot be opened directly.</p>
-                </div>
-                <div class="screen-actions">
-                    <button type="button" id="enableAll">Enable All</button>
-                    <button type="button" id="disableAll">Disable All</button>
+                    <span>HD Foods Quotations</span>
+                    <h2>Quotation Validity</h2>
+                    <p>Set how many days new quotations remain valid before unanswered pending quotations are ignored.</p>
                 </div>
             </div>
-
-            {% set screen_groups = [
-                ('Transactions', 'bi-arrow-left-right', ['purchase', 'purchase_orders', 'sales_orders', 'sales', 'accounts', 'hr']),
-                ('Masters', 'bi-boxes', ['raw_materials', 'products', 'suppliers', 'customers']),
-                ('Reports', 'bi-bar-chart-line', ['purchase_reports', 'sales_reports', 'monthly_purchase_report', 'monthly_sales_report', 'stock_valuation_report', 'supplier_outstanding_report', 'customer_outstanding_report', 'purchase_bank_statement', 'sales_bank_statement', 'accounts_ledger', 'expense_reports']),
-                ('GST Reports', 'bi-receipt-cutoff', ['purchase_gst_report', 'sales_gst_report']),
-                ('AI Tools', 'bi-stars', ['ai_expense_analyzer', 'ai_chatbot'])
-            ] %}
-            <div class="screen-navigation">
-                {% for group_name, group_icon, group_keys in screen_groups %}
-                <section class="screen-menu-group">
-                    <details open>
-                        <summary><i class="bi {{ group_icon }}"></i><span>{{ group_name }}</span><i class="bi bi-chevron-down"></i></summary>
-                        <div class="screen-submenu">
-                            {% for key in group_keys if screens.get(key) %}
-                            <label class="screen-submenu-item">
-                                <span><strong>{{ screens[key] }}</strong><small>Show in sidebar</small></span>
-                                <input class="screen-checkbox" type="checkbox" name="screen_{{ key }}"
-                                       {% if settings.get('screen.' ~ key, '1') == '1' %}checked{% endif %}>
-                                <span class="toggle-switch" aria-hidden="true"></span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                    </details>
-                </section>
-                {% endfor %}
-            </div>
+            <div class="invoice-settings-grid"><label class="settings-field"><span>Validity period (days)</span><input type="number" name="hdfoods_quotation_validity_days" value="{{ settings.get('hdfoods_quotation_validity_days', '30') }}" min="1" max="365" required><small>Default: 30 days. Pending quotations automatically change to Ignored after this period.</small></label></div>
         </section>
+        {% endif %}
 
     </form>
 </div>

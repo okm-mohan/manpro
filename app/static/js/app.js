@@ -1,5 +1,50 @@
 document.addEventListener("DOMContentLoaded", function () {
 
+    const liveOrderPrice = document.getElementById("livePrice");
+    if (liveOrderPrice) {
+        liveOrderPrice.readOnly = false;
+        liveOrderPrice.addEventListener("input", function () {
+            const quantity = document.getElementById("liveQty");
+            if (quantity) quantity.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+    }
+
+    document.querySelectorAll(".live-table table").forEach(function (table) {
+        const heading = table.querySelector("thead tr");
+        if (!heading || heading.dataset.enhanced) return;
+        heading.dataset.enhanced = "true";
+        const headers = heading.children;
+        if (headers.length >= 8) {
+            const priceHeading = document.createElement("th");
+            priceHeading.textContent = "Price";
+            heading.insertBefore(priceHeading, headers[4]);
+            headers[5].textContent = "Total Amount";
+        }
+        table.querySelectorAll("tbody tr").forEach(function (row) {
+            const cells = row.children;
+            if (cells.length < 8) return;
+            const quantity = parseFloat(cells[3].textContent) || 0;
+            const total = parseFloat(cells[4].textContent.replace(/[^0-9.]/g, "")) || 0;
+            const priceCell = document.createElement("td");
+            priceCell.textContent = quantity ? "₹ " + (total / quantity).toFixed(2) : "—";
+            row.insertBefore(priceCell, cells[4]);
+            const statusForm = row.querySelector('form[action$="/status"]');
+            if (statusForm) {
+                const orderId = statusForm.action.match(/orders\/(\d+)\/status/)?.[1];
+                const modeCell = row.children[7];
+                const currentMode = modeCell.textContent.trim();
+                const modeForm = document.createElement("form");
+                modeForm.method = "post";
+                modeForm.action = "/hdfoods/orders/" + orderId + "/mode";
+                modeForm.innerHTML = '<select name="delivery_mode"><option>Daily</option><option>Weekly</option><option>15 Days</option><option>30 Days</option><option>Custom</option></select>';
+                const select = modeForm.querySelector("select");
+                Array.from(select.options).forEach(o => o.selected = o.value === currentMode);
+                select.addEventListener("change", () => modeForm.submit());
+                modeCell.replaceChildren(modeForm);
+            }
+        });
+    });
+
     let current = window.location.pathname.toLowerCase();
 
     const matchingMenuLinks = Array.from(document.querySelectorAll(".menu-list a")).filter(function(link){
@@ -88,4 +133,36 @@ document.addEventListener("DOMContentLoaded", function () {
         if (window.innerWidth > mobileBreakpoint) setSidebar(false);
     });
 
+});
+document.addEventListener('click', function (event) {
+    const button = event.target.closest('#fitTeam');
+    if (!button) return;
+    const shell = button.closest('.team-map-shell');
+    if (!shell) return;
+    if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+    } else {
+        shell.requestFullscreen?.().then(() => {
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
+        });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const map = document.getElementById('teamMap');
+    if (!map) return;
+    const routes = [...map.querySelectorAll('path.leaflet-interactive')];
+    const pins = [...map.querySelectorAll('.leaflet-marker-icon.person-marker')];
+    pins.forEach((pin, index) => {
+        const route = routes[index];
+        const match = route?.getAttribute('d')?.match(/M\s*([\d.]+)[ ,]([\d.]+)/);
+        const finalPosition = pin.style.transform;
+        if (!match || !finalPosition) return;
+        pin.style.transition = 'none';
+        pin.style.transform = `translate3d(${match[1]}px, ${match[2]}px, 0px)`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            pin.style.transition = `transform 1800ms cubic-bezier(.22,.82,.24,1) ${index * 120}ms`;
+            pin.style.transform = finalPosition;
+        }));
+    });
 });

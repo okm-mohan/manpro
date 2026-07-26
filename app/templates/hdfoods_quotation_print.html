@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ quotation.quotation_no }} | HD Foods Quotation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#edf1f6;color:#17243b;font:14px Manrope,Arial,sans-serif}.toolbar{max-width:210mm;margin:20px auto 12px;display:flex;justify-content:space-between;gap:10px}.toolbar a,.toolbar button{border:0;border-radius:8px;padding:10px 14px;background:#fff;color:#173d70;font:700 13px Manrope;text-decoration:none;cursor:pointer}.toolbar button{background:#16a26b;color:#fff}.a4-page{width:210mm;min-height:297mm;margin:0 auto 24px;padding:18mm;background:#fff;box-shadow:0 6px 25px #bfc8d5}.heading{display:flex;justify-content:space-between;gap:30px;padding-bottom:18px;border-bottom:3px solid #16a26b}.brand{font-size:27px;font-weight:800;color:#163866}.brand small{display:block;margin-top:4px;font-size:10px;letter-spacing:1.4px;color:#16a26b}.quote-title{text-align:right}.quote-title h1{margin:0;color:#16a26b;font-size:25px}.quote-title span{font-size:12px;color:#65748a}.details{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:26px 0}.details h2{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#16a26b}.details p{margin:4px 0;line-height:1.6}.details .right{text-align:right}.details .right p{display:flex;justify-content:flex-end;gap:18px}.details .right b{min-width:95px;color:#65748a}table{width:100%;border-collapse:collapse;margin-top:18px}th{padding:11px 10px;text-align:left;background:#163866;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.5px}td{padding:12px 10px;border-bottom:1px solid #e7ebf0;vertical-align:top}.right-align{text-align:right}.total{margin:24px 0 0 auto;width:280px}.total div{display:flex;justify-content:space-between;padding:7px 0;color:#58677c}.total .grand{margin-top:7px;padding:12px 0;border-top:2px solid #163866;color:#163866;font-size:17px;font-weight:800}.terms{margin-top:45px;padding-top:16px;border-top:1px solid #e7ebf0}.terms h3{font-size:12px;margin:0 0 7px;color:#163866}.terms p{margin:0;line-height:1.7;color:#58677c;font-size:12px}.footer{position:relative;margin-top:50px;padding-top:13px;border-top:1px solid #e7ebf0;text-align:center;color:#8490a1;font-size:10px}@page{size:A4;margin:0}@media print{body{background:#fff}.toolbar{display:none}.a4-page{margin:0;box-shadow:none;width:210mm;min-height:297mm}}@media(max-width:760px){.a4-page{width:100%;min-height:auto;padding:25px}.heading,.details{display:block}.quote-title,.details .right{text-align:left;margin-top:20px}.details .right p{justify-content:flex-start}.toolbar{margin:10px}.total{width:100%}}
+  </style>
+  <style>
+    /* Roomier A4 layout for a more professional printed quotation. */
+    .a4-page{padding:23mm 21mm!important}
+    .heading{padding-bottom:22px!important}
+    .details{margin:32px 0!important;gap:42px!important}
+    table{margin-top:26px!important}
+    th{padding:13px 12px!important}td{padding:14px 12px!important}
+    .total{margin-top:30px!important}.terms{margin-top:55px!important;padding-top:20px!important}.footer{margin-top:62px!important;padding-top:16px!important}
+    @media(max-width:760px){.a4-page{padding:28px!important}}
+    @media print{.a4-page{padding:18mm 16mm!important}.details{margin:25px 0!important}.terms{margin-top:42px!important}.footer{margin-top:46px!important}}
+  </style>
+</head>
+<body>
+  <div class="toolbar"><a href="/hdfoods/quotations"><i>←</i> Back to quotations</a><button type="button" onclick="window.print()">Print / Save PDF</button></div>
+  <article class="a4-page">
+    <header class="heading"><div class="brand">HD FOODS<small>FIELD SALES &amp; DISTRIBUTION</small></div><div class="quote-title"><h1>QUOTATION</h1><span>{{ quotation.quotation_no }}</span></div></header>
+    <section class="details"><div><h2>Quotation for</h2><p><strong>{{ quotation.customer_name or 'Customer' }}</strong></p><p>{{ quotation.customer_mobile or '' }}</p></div><div class="right"><h2>Quotation details</h2><p><b>Date</b><span>{{ quotation.quotation_date.strftime('%d %B %Y') if quotation.quotation_date else '' }}</span></p><p><b>Valid for</b><span>{{ quotation.validity_days or 30 }} days</span></p><p><b>Status</b><span>{{ quotation.status }}</span></p></div></section>
+    <table><thead><tr><th>#</th><th>Item</th><th class="right-align">Qty</th><th class="right-align">Rate</th><th class="right-align">Amount</th></tr></thead><tbody>{% for item in quotation.items %}{% set qty = item.quantity|float %}{% set rate = item.rate|float %}<tr><td>{{ loop.index }}</td><td><strong>{{ item.name or item.description or 'Item' }}</strong>{% if item.description and item.description != item.name %}<br><small>{{ item.description }}</small>{% endif %}</td><td class="right-align">{{ qty|int if qty == qty|int else qty }}</td><td class="right-align">₹ {{ '%.2f'|format(rate) }}</td><td class="right-align">₹ {{ '%.2f'|format(qty * rate * (1 - (item.discount|float / 100))) }}</td></tr>{% else %}<tr><td colspan="5" style="text-align:center;color:#8490a1">No items recorded for this quotation.</td></tr>{% endfor %}</tbody></table>
+    <section class="total"><div><span>Subtotal</span><strong>₹ {{ '%.2f'|format(quotation.subtotal or 0) }}</strong></div>{% if quotation.discount_amount %}<div><span>Discount</span><strong>₹ {{ '%.2f'|format(quotation.discount_amount) }}</strong></div>{% endif %}<div><span>GST</span><strong>₹ {{ '%.2f'|format(quotation.tax_amount or 0) }}</strong></div><div class="grand"><span>Grand Total</span><strong>₹ {{ '%.2f'|format(quotation.total_amount or 0) }}</strong></div></section>
+    <section class="terms"><h3>Notes &amp; Terms</h3><p>{{ quotation.notes or 'This quotation is subject to the validity period stated above. Thank you for choosing HD Foods.' }}</p></section>
+    <footer class="footer">This is a computer-generated quotation from HD Foods.</footer>
+  </article>
+  {% if auto_print %}<script>window.addEventListener('load',function(){window.print()})</script>{% endif %}
+</body>
+</html>
