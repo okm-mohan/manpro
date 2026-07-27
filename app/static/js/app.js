@@ -31,6 +31,21 @@ document.addEventListener("DOMContentLoaded", function () {
             const statusForm = row.querySelector('form[action$="/status"]');
             if (statusForm) {
                 const orderId = statusForm.action.match(/orders\/(\d+)\/status/)?.[1];
+                if (orderId) {
+                    fetch("/hdfoods/orders/" + orderId + "/gst")
+                        .then(response => response.ok ? response.json() : null)
+                        .then(data => {
+                            if (data && Number(data.gst_percent) > 0) {
+                                const totalCell = row.children[5];
+                                if (totalCell && !totalCell.querySelector(".gst-included-note")) {
+                                    const note = document.createElement("small");
+                                    note.className = "gst-included-note";
+                                    note.textContent = "Incl. GST (" + data.gst_percent + "%)";
+                                    totalCell.appendChild(note);
+                                }
+                            }
+                        }).catch(() => {});
+                }
                 const modeCell = row.children[7];
                 const currentMode = modeCell.textContent.trim();
                 const modeForm = document.createElement("form");
@@ -42,6 +57,164 @@ document.addEventListener("DOMContentLoaded", function () {
                 select.addEventListener("change", () => modeForm.submit());
                 modeCell.replaceChildren(modeForm);
             }
+        });
+    });
+
+    const liveOrderStages = [
+        ["Order Placed", "Order Placed"], ["Processing", "Processing"],
+        ["Ready for Dispatch", "Ready for Dispatch"], ["Out for Delivery", "Out for Delivery"],
+        ["Delivered", "Delivered"], ["Payment Settled", "Payment Settled"]
+    ];
+    document.querySelectorAll('.live-table form[action$="/status"] select[name="status"]').forEach(function (select) {
+        const legacy = select.value;
+        const selected = legacy === "Ordered" ? "Order Placed" : legacy === "Pending Delivery" ? "Processing" : legacy;
+        select.replaceChildren(...liveOrderStages.map(function (stage) {
+            const option = new Option(stage[1], stage[0], false, stage[0] === selected);
+            return option;
+        }));
+        select.onchange = async function () {
+            const form = select.form;
+            const previous = select.dataset.savedValue || selected;
+            select.disabled = true;
+            try {
+                const response = await fetch(form.action + "?status=" + encodeURIComponent(select.value), {
+                    method: "POST",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                if (!response.ok) throw new Error("Status update failed");
+                select.dataset.savedValue = select.value;
+                select.classList.add("live-status-saved");
+                setTimeout(() => select.classList.remove("live-status-saved"), 900);
+            } catch (error) {
+                select.value = previous;
+                showLiveOrderNotice("The order status could not be updated. Please try again.", "error");
+            } finally {
+                select.disabled = false;
+            }
+        };
+        select.dataset.savedValue = selected;
+        const orderId = select.form.action.match(/orders\/(\d+)\/status/)?.[1];
+        if (orderId) {
+            fetch("/hdfoods/orders/" + orderId + "/status")
+                .then(response => response.ok ? response.json() : null)
+                .then(data => {
+                    if (data && liveOrderStages.some(stage => stage[0] === data.status)) {
+                        select.value = data.status;
+                        select.dataset.savedValue = data.status;
+                    }
+                }).catch(() => {});
+        }
+    });
+
+    const liveRegister = document.querySelector(".live-register");
+    const liveTable = liveRegister && liveRegister.querySelector(".live-table table");
+    if (liveRegister && liveTable && !document.getElementById("liveStatusFilter")) {
+        const filter = document.createElement("select");
+        filter.id = "liveStatusFilter";
+        filter.className = "live-status-filter";
+        filter.innerHTML = '<option value="">All statuses</option>' + liveOrderStages.map(stage => '<option value="' + stage[0] + '">' + stage[1] + '</option>').join('');
+        const dateFilter = liveRegister.querySelector(".live-dates");
+        if (dateFilter) dateFilter.prepend(filter);
+        const applyFilter = function () {
+            liveTable.querySelectorAll("tbody tr").forEach(function (row) {
+                const select = row.querySelector('form[action$="/status"] select');
+                if (!select) return;
+                row.hidden = !!filter.value && select.value !== filter.value;
+            });
+        };
+        filter.addEventListener("change", applyFilter);
+        liveTable.querySelectorAll('form[action$="/status"] select').forEach(select => select.addEventListener("change", () => setTimeout(applyFilter, 50)));
+    }
+
+    function showLiveOrderNotice(message, kind) {
+        let notice = document.getElementById("liveOrderNotice");
+        if (!notice) {
+            notice = document.createElement("div");
+            notice.id = "liveOrderNotice";
+            document.body.appendChild(notice);
+        }
+        notice.className = "live-order-notice " + kind;
+        notice.textContent = message;
+        notice.hidden = false;
+        clearTimeout(notice._timer);
+        notice._timer = setTimeout(() => { notice.hidden = true; }, 2800);
+    }
+
+    const liveOrdersPage = document.querySelector(".live-orders");
+    const orderEntry = liveOrdersPage && liveOrdersPage.querySelector(".order-entry");
+    const liveHero = liveOrdersPage && liveOrdersPage.querySelector(".live-hero");
+    if (orderEntry && liveHero && !document.getElementById("liveOrderModal")) {
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.className = "live-new-order-btn";
+        openButton.innerHTML = '<i class="bi bi-plus-lg"></i> New Order';
+        liveHero.appendChild(openButton);
+        const modal = document.createElement("dialog");
+        modal.id = "liveOrderModal";
+        modal.className = "live-order-modal";
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "live-order-modal-close";
+        closeButton.setAttribute("aria-label", "Close new order form");
+        closeButton.innerHTML = '<i class="bi bi-x-lg"></i>';
+        const orderForm = orderEntry.querySelector("form");
+        const submitButton = orderForm && orderForm.querySelector('button[type="submit"], button:not([type])');
+        if (orderForm && submitButton && !orderForm.querySelector(".live-order-cancel")) {
+            const footer = document.createElement("div");
+            footer.className = "live-order-modal-actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.className = "live-order-cancel";
+            cancel.innerHTML = '<i class="bi bi-x-lg"></i> Cancel';
+            submitButton.parentNode.insertBefore(footer, submitButton);
+            footer.append(cancel, submitButton);
+            cancel.addEventListener("click", () => modal.close());
+            const total = orderEntry.querySelector("#liveTotal");
+            if (total) {
+                total.classList.add("live-order-footer-total");
+                footer.insertBefore(total, footer.firstChild);
+            }
+        }
+        modal.append(closeButton, orderEntry);
+        document.body.appendChild(modal);
+        const openLiveOrderModal = () => {
+            const timeInput = orderEntry.querySelector('input[name="delivery_time"]');
+            if (timeInput && !timeInput.value) timeInput.value = new Date().toTimeString().slice(0, 5);
+            modal.showModal();
+        };
+        openButton.addEventListener("click", openLiveOrderModal);
+        const orderParams = new URLSearchParams(window.location.search);
+        if (orderParams.get("new") === "1") {
+            const customerSelect = orderEntry.querySelector('select[name="customer_id"]');
+            if (customerSelect && orderParams.get("customer_id")) customerSelect.value = orderParams.get("customer_id");
+            openLiveOrderModal();
+        }
+        closeButton.addEventListener("click", () => modal.close());
+        modal.addEventListener("click", event => { if (event.target === modal) modal.close(); });
+    }
+
+    document.querySelectorAll(".shops-table-wrap table").forEach(function (table) {
+        const header = table.querySelector("thead tr");
+        if (!header || header.dataset.statusColumns) return;
+        header.dataset.statusColumns = "true";
+        const actionsHeader = header.lastElementChild;
+        ["Shop Status", "Order Status", "Edit"].forEach(function (label) { const th = document.createElement("th"); th.textContent = label; header.insertBefore(th, actionsHeader); });
+        actionsHeader.textContent = "Order";
+        table.querySelectorAll("tbody tr.shop-row").forEach(function (row) {
+            const actionCell = row.lastElementChild, edit = actionCell.querySelector('a[href*="/customer/edit/"]'), order = actionCell.querySelector('a[href*="sales-orders/add"]');
+            const customerId = edit && edit.href.match(/\/customer\/edit\/(\d+)/)?.[1];
+            const active = document.createElement("td"); active.innerHTML = '<span class="shop-active-status">Active</span>';
+            const orderStatus = document.createElement("td"); orderStatus.innerHTML = '<span class="shop-order-status">Loading…</span>';
+            const editCell = document.createElement("td"); if (edit) editCell.append(edit);
+            row.insertBefore(active, actionCell); row.insertBefore(orderStatus, actionCell); row.insertBefore(editCell, actionCell);
+            if (order) actionCell.replaceChildren(order);
+            if (order && customerId) order.href = "/hdfoods/orders?new=1&customer_id=" + encodeURIComponent(customerId);
+            if (customerId) {
+                active.innerHTML = '<select class="shop-status-select"><option>Active</option><option>Inactive</option></select>';
+                const statusSelect = active.querySelector("select");
+                statusSelect.addEventListener("change", () => fetch('/hdfoods/shops/' + customerId + '/status', {method:'POST', body:new URLSearchParams({status:statusSelect.value})}));
+            }
+            if (customerId) fetch('/hdfoods/shops/' + customerId + '/order-status').then(r => r.json()).then(data => { orderStatus.querySelector('span').textContent = data.status; }).catch(() => { orderStatus.querySelector('span').textContent = 'No orders'; });
         });
     });
 

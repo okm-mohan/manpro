@@ -1,6 +1,9 @@
 /* Avoid continuous full-page repainting while the directory scrolls. */
 body:has(.shops-page) .main-wrapper{background-attachment:scroll!important;background-image:none!important;background-color:#f7faf9!important}
 .shops-page .shops-card,.shops-page .shop-stats article{background-color:#fff!important;backdrop-filter:none!important}
+.shops-page .shop-stats{display:none!important}
+.shops-page .shops-card>header>a{display:none!important}
+.shops-page .shop-tools{display:none!important}
 
 /* Customer List text hierarchy. */
 .shops-page{color:#0f172a}.shops-hero h1{color:#fff}.shops-hero p{color:#dcfce7!important}.shops-card h2,.shop-name strong,.shops-table-wrap td{color:#0f172a!important}.shops-card header>div>span{color:#047857!important}.shop-stats span,.shop-name small,.shops-table-wrap td>small,.date-pill{color:#64748b!important}.shop-stats strong{color:#0f172a!important}.shops-table-wrap th{color:#475569!important}.shop-filters label{color:#64748b!important}.shop-filters input{color:#0f172a!important}.shop-tools a{color:#047857!important}

@@ -8,10 +8,6 @@
             <div class="hd-eyebrow"><i class="bi bi-lightning-charge-fill"></i> HD FOODS · FIELD SALES</div>
             <h1>Good day, {{ full_name }} <span>👋</span></h1>
             <p>Your distribution workspace for visits, orders, deliveries, and collections.</p>
-            <div class="hd-hero-actions">
-                <a class="hd-primary-action" href="/sales-orders/add"><i class="bi bi-plus-lg"></i> Create order</a>
-                <a class="hd-secondary-action" href="/customers"><i class="bi bi-shop"></i> Add shop</a>
-            </div>
         </div>
         <div class="hd-hero-orb hd-orb-one"></div><div class="hd-hero-orb hd-orb-two"></div>
         <div class="hd-hero-status"><i class="bi bi-geo-alt-fill"></i><span><small>Today’s focus</small><strong>Field distribution</strong></span></div>
@@ -24,6 +20,7 @@
         <article class="hd-stat hd-stat-shops"><span class="hd-stat-icon"><i class="bi bi-shop-window"></i></span><div><small>Active shops</small><strong>{{ customer_count }}</strong><em>In your network</em></div></article>
     </section>
 
+    <section class="hd-dashboard-lists"><article class="hd-card"><header class="hd-card-header"><div><span class="hd-section-label">TODAY'S WORK</span><h2>Today Orders</h2></div></header><div class="hd-mini-list">{% for o in today_orders %}<div><strong>{{ o.customer_name }}</strong><span>{{ o.product_name }} · Qty {{ o.quantity }}</span></div>{% else %}<p>No orders scheduled for today.</p>{% endfor %}</div></article><article class="hd-card"><header class="hd-card-header"><div><span class="hd-section-label">PAYMENTS RECEIVED</span><h2>Today Collections</h2></div></header><div class="hd-mini-list">{% for c in today_collections %}<div><strong>{{ c.customer_name }}</strong><span>{{ c.invoice_no }} · ₹ {{ '%.2f'|format(c.amount) }}</span></div>{% else %}<p>No collections received today.</p>{% endfor %}</div></article><article class="hd-card"><header class="hd-card-header"><div><span class="hd-section-label">PAYMENT FOLLOW-UP</span><h2>Uncleared Invoices</h2></div><a href="/hdfoods/billing">More <i class="bi bi-arrow-up-right"></i></a></header><div class="hd-mini-list">{% for i in uncleared_invoices %}<div><strong>{{ i.customer_name }}</strong><span>{{ i.invoice_no }} · ₹ {{ '%.2f'|format(i.total_amount) }}</span></div>{% else %}<p>All recent invoices are cleared.</p>{% endfor %}</div></article></section>
     <section class="hd-workspace">
         <article class="hd-card hd-deliveries">
             <header class="hd-card-header"><div><span class="hd-section-label">DISTRIBUTION PULSE</span><h2>Upcoming deliveries</h2><p>Keep every delivery cycle on schedule.</p></div><a href="/hdfoods/delivery-cycles" aria-label="Open delivery list">View all <i class="bi bi-arrow-up-right"></i></a></header>

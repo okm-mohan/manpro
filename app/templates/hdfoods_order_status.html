@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block page_title %}Order Status{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/hdfoods_order_status.css">{% endblock %}
+{% block content %}
+<main class="status-view">
+  <section class="status-hero">
+    <span>HD FOODS · DELIVERY COMMAND CENTER</span>
+    <h1>Order Status Tracker</h1>
+    <p>Follow every active order from placement to delivery.</p>
+  </section>
+  <section class="status-list">
+    {% for order in orders %}
+    <article class="status-card">
+      <header>
+        <div><strong>{{ order.order_number }}</strong><span>{{ order.customer_name }} · {{ order.product_name }}</span></div>
+        <b>{{ order.status }}</b>
+      </header>
+      <div class="stage-rail" data-stage="{{ order.status }}" data-delivery="{{ order.delivery_date.strftime('%d %b %Y') if order.delivery_date else 'Delivery date not set' }}">
+        {% for stage in stages %}
+        <button class="stage" type="button" data-stage="{{ stage }}">
+          <i class="bi {% if loop.index == 1 %}bi-pencil-square{% elif loop.index == 2 %}bi-gear{% elif loop.index == 3 %}bi-box-seam{% elif loop.index == 4 %}bi-truck{% else %}bi-check2-circle{% endif %}"></i>
+          <small>{{ stage }}</small>
+          <em><strong>{{ stage }}</strong><span>Click a stage to review its progress.</span></em>
+        </button>
+        {% endfor %}
+        <span class="van" aria-hidden="true"><i class="bi bi-truck"></i></span>
+      </div>
+    </article>
+    {% else %}<div class="status-empty">No active orders to track.</div>{% endfor %}
+  </section>
+</main>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.stage-rail').forEach(rail => {
+  const stages = [...rail.querySelectorAll('.stage')], current = stages.findIndex(stage => stage.dataset.stage === rail.dataset.stage);
+  stages.forEach((stage, index) => {
+    if (index < current) stage.classList.add('complete');
+    if (index === current) stage.classList.add('current');
+    stage.addEventListener('click', () => {
+      stages.forEach(item => item.classList.remove('open'));
+      stage.classList.add('open');
+      const detail = stage.querySelector('em span');
+      detail.textContent = index === current ? `Current stage · ${rail.dataset.delivery}` : index < current ? 'Completed for this order' : 'Waiting for the previous stage';
+    });
+  });
+  rail.style.setProperty('--progress', `${Math.max(8, (Math.max(current, 0) * 21) + 10)}%`);
+});
+</script>
+{% endblock %}

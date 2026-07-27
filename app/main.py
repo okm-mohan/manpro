@@ -1563,6 +1563,12 @@ async def dashboard(request: Request):
     if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS":
         today_sales_value = db.execute(text("SELECT IFNULL(SUM(grand_total),0) FROM sales WHERE sale_date=CURDATE()")).scalar() or 0
         customer_count = db.execute(text("SELECT COUNT(*) FROM customers")).scalar() or 0
+        try:
+            today_orders = db.execute(text("""SELECT o.order_number,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name,o.quantity FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.delivery_date=CURDATE() ORDER BY o.id DESC""")).mappings().all()
+            today_collections = db.execute(text("""SELECT p.amount,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,i.invoice_no FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id JOIN customers c ON c.id=i.customer_id WHERE p.payment_date=CURDATE() ORDER BY p.id DESC""")).mappings().all()
+            uncleared_invoices = db.execute(text("""SELECT i.invoice_no,i.total_amount,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id WHERE i.payment_status<>'Paid' ORDER BY i.id DESC LIMIT 5""")).mappings().all()
+        except Exception:
+            today_orders, today_collections, uncleared_invoices = [], [], []
         db.close()
         return templates.TemplateResponse(request=request, name="hdfoods_dashboard.html", context={
             "request": request,
@@ -1570,6 +1576,7 @@ async def dashboard(request: Request):
             "today_visits": 0, "completed_visits": 0, "followups_due": 0,
             "today_sales": today_sales_value, "customer_count": customer_count,
             "delivery_overdue": 0, "delivery_due_today": 0, "delivery_due_soon": 0,
+            "today_orders": today_orders, "today_collections": today_collections, "uncleared_invoices": uncleared_invoices,
         })
 
     today_sales = db.execute(text("""
@@ -3891,10 +3898,20 @@ async def hdfoods_live_order_create(request: Request):
 
 @app.post("/hdfoods/orders/{order_id}/status")
 async def hdfoods_live_order_status(request: Request, order_id: int):
-    form = await request.form(); status = str(form.get("status") or "Ordered")
-    if status not in {"Ordered","Pending Delivery","Delivered","Payment Settled"}: raise HTTPException(status_code=400)
+    form = await request.form(); status = str(request.query_params.get("status") or form.get("status") or "Order Placed")
+    if status not in {"Order Placed","Processing","Ready for Dispatch","Out for Delivery","Delivered","Payment Settled"}: raise HTTPException(status_code=400)
     db=SessionLocal(); db.execute(text("UPDATE hdfoods_live_orders SET status=:s WHERE id=:id"),{"s":status,"id":order_id}); db.commit(); db.close()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JSONResponse({"ok": True, "status": status})
     return RedirectResponse("/hdfoods/orders", status_code=303)
+
+
+@app.get("/hdfoods/orders/{order_id}/status")
+def hdfoods_live_order_status_value(request: Request, order_id: int):
+    db=SessionLocal()
+    row=db.execute(text("SELECT status FROM hdfoods_live_orders WHERE id=:id"),{"id":order_id}).mappings().first()
+    db.close()
+    return JSONResponse({"status": str(row["status"]) if row else "Order Placed"})
 
 
 @app.get("/hdfoods/delivery-status")
@@ -3956,6 +3973,14 @@ async def hdfoods_live_order_mode(request: Request, order_id: int):
     if not mode: raise HTTPException(status_code=400)
     db=SessionLocal(); db.execute(text("UPDATE hdfoods_live_orders SET delivery_mode=:m WHERE id=:id"),{"m":mode,"id":order_id}); db.commit(); db.close()
     return RedirectResponse("/hdfoods/orders", status_code=303)
+
+
+@app.get("/hdfoods/orders/{order_id}/gst")
+def hdfoods_live_order_gst(request: Request, order_id: int):
+    db=SessionLocal()
+    row=db.execute(text("SELECT COALESCE(gst_percent,0) gst_percent FROM hdfoods_live_orders WHERE id=:id"),{"id":order_id}).mappings().first()
+    db.close()
+    return JSONResponse({"gst_percent": float(row["gst_percent"] or 0) if row else 0})
 
 
 @app.get("/hdfoods/billing")
@@ -4147,6 +4172,134 @@ def hdfoods_invoice_pdf(request: Request, invoice_id: int):
     totals = [["Subtotal", f"Rs. {float(invoice['subtotal']):,.2f}"], [f"GST ({float(invoice['gst_percent']):g}%)", f"Rs. {float(invoice['gst_amount']):,.2f}"], ["Grand Total", f"Rs. {float(invoice['total_amount']):,.2f}"]]; totals_table = Table(totals, colWidths=[42*mm, 38*mm], hAlign="RIGHT"); totals_table.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"RIGHT"),("LINEABOVE",(0,2),(-1,2),1,colors.HexColor("#075f52")),("FONTNAME",(0,2),(-1,2),"Helvetica-Bold"),("FONTSIZE",(0,2),(-1,2),13),("TEXTCOLOR",(0,2),(-1,2),colors.HexColor("#075f52")),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)])); story += [totals_table, Spacer(1, 18*mm), Paragraph("This is a computer-generated tax invoice.", ParagraphStyle("foot", parent=styles["Normal"], alignment=TA_CENTER, textColor=colors.HexColor("#64748b")))]
     doc.build(story); output.seek(0)
     return Response(content=output.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{invoice["invoice_no"]}.pdf"'})
+
+
+@app.get("/hdfoods/shops/{customer_id}/order-status")
+def hdfoods_shop_order_status(request: Request, customer_id: int):
+    db=SessionLocal()
+    try:
+        row=db.execute(text("SELECT status FROM hdfoods_live_orders WHERE customer_id=:id ORDER BY id DESC LIMIT 1"),{"id":customer_id}).mappings().first()
+    except Exception:
+        row=None
+    db.close()
+    return JSONResponse({"status": str(row["status"]) if row else "No orders"})
+
+
+@app.post("/hdfoods/shops/{customer_id}/status")
+async def hdfoods_shop_status(request: Request, customer_id: int):
+    form=await request.form(); status=str(form.get("status") or "Active")
+    if status not in {"Active","Inactive"}: raise HTTPException(status_code=400)
+    db=SessionLocal()
+    try:
+        db.execute(text("ALTER TABLE customers ADD COLUMN shop_status VARCHAR(20) NOT NULL DEFAULT 'Active'")); db.commit()
+    except Exception:
+        db.rollback()
+    db.execute(text("UPDATE customers SET shop_status=:s WHERE id=:id"),{"s":status,"id":customer_id}); db.commit(); db.close()
+    return JSONResponse({"ok":True,"status":status})
+
+
+@app.get("/hdfoods/order-status")
+def hdfoods_order_status_view(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS": return RedirectResponse("/sales-orders", status_code=303)
+    db=SessionLocal()
+    rows=db.execute(text("""SELECT o.order_number,o.status,o.delivery_date,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.status <> 'Payment Settled' ORDER BY o.id DESC""")).mappings().all()
+    db.close()
+    stages=["Order Placed","Processing","Ready for Dispatch","Out for Delivery","Delivered"]
+    orders = [dict(row) for row in rows]
+    for order in orders:
+        if order["status"] == "Ordered":
+            order["status"] = "Order Placed"
+    return templates.TemplateResponse(request=request,name="hdfoods_order_status.html",context={"orders":orders,"stages":stages})
+
+
+@app.get("/hdfoods/daily-visits")
+def hdfoods_daily_visits(request: Request, from_date: str = "", to_date: str = "", tab: str = "visits"):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    end_date = date.fromisoformat(to_date) if to_date else date.today()
+    start_date = date.fromisoformat(from_date) if from_date else end_date - timedelta(days=29)
+    tab = tab if tab in {"visits", "followups", "disclosed"} else "visits"
+    db = SessionLocal()
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_daily_visits (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY, visit_date DATE NOT NULL, marketing_person_id INT NULL,
+        shop_id INT NULL, shop_name VARCHAR(200) NULL, contact_person VARCHAR(150) NULL, contact_phone VARCHAR(40) NULL,
+        product_requirement TEXT NULL, visit_details TEXT NULL, visit_outcome VARCHAR(60) NOT NULL DEFAULT 'Visited',
+        next_followup_date DATE NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    db.commit()
+    try:
+        db.execute(text("ALTER TABLE hdfoods_daily_visits ADD COLUMN shop_name VARCHAR(200) NULL AFTER shop_id"))
+        db.execute(text("ALTER TABLE hdfoods_daily_visits MODIFY shop_id INT NULL"))
+        db.commit()
+    except Exception:
+        db.rollback()
+    try:
+        db.execute(text("ALTER TABLE hdfoods_daily_visits ADD COLUMN followup_status VARCHAR(40) NOT NULL DEFAULT 'None'"))
+        db.execute(text("ALTER TABLE hdfoods_daily_visits ADD COLUMN followup_details TEXT NULL"))
+        db.commit()
+    except Exception:
+        db.rollback()
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_followup_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY, visit_id BIGINT NOT NULL, followup_status VARCHAR(40) NOT NULL,
+        followup_details TEXT NULL, next_followup_date DATE NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    db.commit()
+    people = db.execute(text("SELECT id,employee_name,designation FROM employees WHERE status='Active' ORDER BY employee_name")).mappings().all()
+    status_filter = ""
+    if tab == "followups":
+        status_filter = " AND (v.visit_outcome IN ('Follow-up required','Interested') OR v.followup_status='On Follow-up') AND COALESCE(v.followup_status,'None') <> 'Disclosed'"
+    elif tab == "disclosed":
+        status_filter = " AND v.followup_status='Disclosed'"
+    visits = db.execute(text(f"""SELECT v.*,COALESCE(e.employee_name,'Unassigned') marketing_person,
+        COALESCE(NULLIF(v.shop_name,''),NULLIF(c.company_name,''),c.customer_name) shop_name FROM hdfoods_daily_visits v
+        LEFT JOIN customers c ON c.id=v.shop_id LEFT JOIN employees e ON e.id=v.marketing_person_id
+        WHERE v.visit_date BETWEEN :start AND :end {status_filter} ORDER BY v.visit_date DESC,v.id DESC"""), {"start": start_date, "end": end_date}).mappings().all()
+    logs = db.execute(text("""SELECT l.visit_id,l.followup_status,l.followup_details,l.next_followup_date,l.created_at
+        FROM hdfoods_followup_logs l JOIN hdfoods_daily_visits v ON v.id=l.visit_id
+        WHERE v.visit_date BETWEEN :start AND :end ORDER BY l.created_at DESC,l.id DESC"""), {"start": start_date, "end": end_date}).mappings().all()
+    logs_by_visit = {}
+    for log in logs:
+        logs_by_visit.setdefault(log["visit_id"], []).append({"status": log["followup_status"], "details": log["followup_details"] or "No details recorded", "date": log["created_at"].strftime("%d %b %Y, %I:%M %p") if log["created_at"] else "", "next_date": log["next_followup_date"].strftime("%d %b %Y") if log["next_followup_date"] else "No next date"})
+    visits = [dict(visit, followup_logs=logs_by_visit.get(visit["id"], [])) for visit in visits]
+    db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_daily_visits.html", context={"people":people,"visits":visits,"from_date":start_date,"to_date":end_date,"tab":tab})
+
+
+@app.post("/hdfoods/daily-visits")
+async def hdfoods_daily_visit_save(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    form = await request.form()
+    db = SessionLocal()
+    db.execute(text("""CREATE TABLE IF NOT EXISTS hdfoods_followup_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY, visit_id BIGINT NOT NULL, followup_status VARCHAR(40) NOT NULL,
+        followup_details TEXT NULL, next_followup_date DATE NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""))
+    db.execute(text("""INSERT INTO hdfoods_daily_visits
+        (visit_date,marketing_person_id,shop_name,contact_person,contact_phone,product_requirement,visit_details,visit_outcome,next_followup_date,followup_status)
+        VALUES (:date,:person,:shop,:contact,:phone,:products,:details,:outcome,:followup,:status)"""), {
+        "date": form.get("visit_date") or date.today().isoformat(), "person": form.get("marketing_person_id") or None,
+        "shop": form.get("shop_name") or None, "contact": form.get("contact_person") or None, "phone": form.get("contact_phone") or None,
+        "products": form.get("product_requirement") or None, "details": form.get("visit_details") or None,
+        "outcome": form.get("visit_outcome") or "Visited", "followup": form.get("next_followup_date") or None,
+        "status": "On Follow-up" if form.get("visit_outcome") in {"Follow-up required", "Interested"} else "None"})
+    db.commit(); db.close()
+    return RedirectResponse("/hdfoods/daily-visits", status_code=303)
+
+
+@app.post("/hdfoods/daily-visits/followup")
+async def hdfoods_daily_visit_followup(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    form = await request.form()
+    status = form.get("followup_status") if form.get("followup_status") in {"On Follow-up", "Disclosed"} else "On Follow-up"
+    db = SessionLocal()
+    db.execute(text("""UPDATE hdfoods_daily_visits SET followup_status=:status,followup_details=:details,
+        next_followup_date=:followup WHERE id=:id"""), {"status":status,"details":form.get("followup_details") or None,
+        "followup":form.get("next_followup_date") or None,"id":form.get("visit_id")})
+    db.execute(text("""INSERT INTO hdfoods_followup_logs (visit_id,followup_status,followup_details,next_followup_date)
+        VALUES (:id,:status,:details,:followup)"""), {"id":form.get("visit_id"),"status":status,
+        "details":form.get("followup_details") or None,"followup":form.get("next_followup_date") or None})
+    db.commit(); db.close()
+    target = "disclosed" if status == "Disclosed" else "followups"
+    return RedirectResponse(f"/hdfoods/daily-visits?tab={target}", status_code=303)
 
 
 @app.get("/hdfoods/shop-map")
