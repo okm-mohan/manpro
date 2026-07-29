@@ -9,20 +9,19 @@ Purchase
 {% endblock %}
 
 {% block content %}
+{% set is_hdfoods = request.session.get('tenant_company_code', '')|upper == 'HDFOODS' %}
 
 <div class="purchase-page">
 
     <section class="purchase-hero">
 
         <div>
-            <span class="purchase-kicker">Procurement Desk</span>
-            <h1>Purchase Management</h1>
-            <p>
-                Track supplier invoices, purchase totals, date filters and procurement activity from one focused workspace.
-            </p>
+            <span class="purchase-kicker">{% if is_hdfoods %}HD Foods · Procurement Desk{% else %}Procurement Desk{% endif %}</span>
+            <h1>{% if is_hdfoods %}HD Foods Purchase{% else %}Purchase Management{% endif %}</h1>
+            <p>{% if is_hdfoods %}Record vendor purchases, track invoice totals and review procurement activity date by date.{% else %}Track supplier invoices, purchase totals, date filters and procurement activity from one focused workspace.{% endif %}</p>
         </div>
 
-        <a href="/purchase/add" class="btn-add-purchase">
+        <a href="{% if is_hdfoods %}/hdfoods/purchase/add{% else %}/purchase/add{% endif %}" class="btn-add-purchase">
             <i class="bi bi-plus-lg"></i>
             <span>Add Purchase</span>
         </a>
@@ -90,7 +89,7 @@ Purchase
 
     <section class="purchase-filter-panel">
 
-        <form method="get" action="/purchase" class="purchase-filter-form">
+        <form method="get" action="{% if is_hdfoods %}/hdfoods/purchase{% else %}/purchase{% endif %}" class="purchase-filter-form">
 
             <div class="purchase-filter-field">
                 <label>From Date</label>
@@ -175,13 +174,13 @@ Purchase
 
                         <td>
                             <div class="purchase-action-group">
-                                <a href="/purchase/edit/{{ row.purchase_id }}"
+                                <a href="{% if is_hdfoods %}/hdfoods/purchase/edit/{{ row.purchase_id }}{% else %}/purchase/edit/{{ row.purchase_id }}{% endif %}"
                                    class="purchase-table-action purchase-edit-action">
                                     <i class="bi bi-pencil-square"></i>
                                     <span>Edit</span>
                                 </a>
 
-                                <a href="/purchase/delete/{{ row.purchase_id }}"
+                                <a href="{% if is_hdfoods %}/hdfoods/purchase/delete/{{ row.purchase_id }}{% else %}/purchase/delete/{{ row.purchase_id }}{% endif %}"
                                    class="purchase-table-action purchase-delete-action"
                                    data-delete-purchase
                                    data-purchase-no="{{ row.invoice_no }}">

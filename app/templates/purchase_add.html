@@ -5,17 +5,18 @@
 {% endblock %}
 
 {% block content %}
+{% set is_hdfoods = request.session.get('tenant_company_code', '')|upper == 'HDFOODS' %}
 
 <div class="purchase-add-page">
 
     <section class="purchase-entry-hero">
         <div>
-            <span class="purchase-entry-kicker">Procurement Desk</span>
-            <h1>Purchase Entry</h1>
-            <p>Create a supplier purchase invoice with item-wise GST and stock impact.</p>
+            <span class="purchase-entry-kicker">{% if is_hdfoods %}HD Foods · Procurement Desk{% else %}Procurement Desk{% endif %}</span>
+            <h1>{% if is_hdfoods %}HD Foods Purchase Entry{% else %}Purchase Entry{% endif %}</h1>
+            <p>{% if is_hdfoods %}Create a vendor purchase invoice with item-wise GST and automatic stock update for HD Foods.{% else %}Create a supplier purchase invoice with item-wise GST and stock impact.{% endif %}</p>
         </div>
 
-        <a href="/purchase" class="btn-back">
+        <a href="{% if is_hdfoods %}/hdfoods/purchase{% else %}/purchase{% endif %}" class="btn-back">
             <i class="bi bi-arrow-left"></i>
             <span>Back to List</span>
         </a>
@@ -57,7 +58,7 @@
                         <span data-check="supplier"><i class="bi bi-circle"></i> Supplier</span>
                         <span data-check="invoice"><i class="bi bi-circle"></i> Invoice number</span>
                         <span data-check="date"><i class="bi bi-circle"></i> Invoice date</span>
-                        <span data-check="items"><i class="bi bi-circle"></i> Materials</span>
+                        <span data-check="items"><i class="bi bi-circle"></i> {{ item_label }}s</span>
                     </div>
                     <div class="ocr-review-actions" id="ocrReviewActions" hidden>
                         <button type="button" class="ocr-review-button" id="ocrReviewButton"><i class="bi bi-pencil-square"></i> Review Filled Entry</button>
@@ -164,7 +165,7 @@
                 <thead>
 
                     <tr>
-                        <th class="material-column">Material</th>
+                        <th class="material-column">{{ item_label }}</th>
                         <th>Qty</th>
                         <th>Rate</th>
                         <th>GST %</th>
@@ -239,6 +240,7 @@ let materialsOptions = `
 </option>
 {% endfor %}
 `;
+let purchaseItemLabel = {{ item_label|tojson }};
 
 </script>
 

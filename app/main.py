@@ -73,6 +73,7 @@ class TenantDatabaseMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         public_paths = (
             "/company-enter",
+            "/products",
             "/founder",
             "/trial/",
             "/manpro-admin",
@@ -966,6 +967,52 @@ async def company_enter_page(request: Request):
             "updates": content["updates"],
         },
     )
+
+
+PRODUCT_PAGES = {
+    "erp": {"name": "ManPro AI - Business ERP", "category": "Manufacturing & Distribution", "image": "erp", "price": "₹2,999 / month", "note": "For growing teams · 15-day free trial", "lead": "A connected business ERP that gives manufacturing and distribution teams one clear view of every daily operation.", "use_case": "From purchase order to final customer invoice, every department works from the same source of truth.", "features": ["Live dashboards for sales, stock and cash flow", "Purchase-to-production workflows", "GST-ready invoicing and accounts", "Role-based access for every team"], "highlights": [("Live control", "See sales, stock and cash flow in real time"), ("One platform", "Bring every essential business workflow together"), ("Always protected", "Private roles, permissions and cloud backup")]},
+    "home": {"name": "ManPro AI - Home", "category": "AI Home Automation", "image": "home", "price": "₹24,999 setup", "note": "Hardware packages from ₹9,999", "lead": "Make your home work around you with responsive, thoughtful automation for lighting, comfort and security.", "use_case": "Create routines that make your home comfortable, safe and energy-aware—whether you are home or away.", "features": ["Smart lighting and scene control", "Voice and mobile app control", "Energy insights and automation", "Secure access and real-time alerts"], "highlights": [("One-touch living", "Control the spaces you use every day"), ("Energy aware", "Make smarter use of every unit of power"), ("Always connected", "Control and check in from your phone")]},
+    "vision": {"name": "ManPro AI - Vision", "category": "AI CCTV Surveillance", "image": "vision", "price": "₹14,999 / camera", "note": "AI monitoring plans from ₹999/month", "lead": "Turn video into actionable awareness with intelligent surveillance built to help you see and respond with confidence.", "use_case": "Give your security team a clearer picture across entrances, sites and critical zones without endless manual review.", "features": ["AI motion and activity detection", "Centralised live camera monitoring", "Instant mobile alerts and playback", "Multi-site security overview"], "highlights": [("See more", "AI surfaces activity that needs attention"), ("Respond faster", "Timely alerts reach your team"), ("Scale securely", "Manage cameras across locations")]},
+    "pos": {"name": "ManPro AI - Retail POS", "category": "Smart Retail Billing", "image": "pos", "price": "₹1,499 / month", "note": "Per outlet · Hardware sold separately", "lead": "Keep counters moving and your business in view with fast billing, inventory awareness and real-time retail insights.", "use_case": "Serve customers faster while keeping products, offers and daily sales completely in sync.", "features": ["Fast barcode billing and receipts", "Live store inventory sync", "Customer and loyalty management", "Daily sales and counter reports"], "highlights": [("Fast checkout", "A smooth experience at peak hours"), ("Stock aware", "Keep the counter connected to inventory"), ("Retail insight", "Understand every store and shift")]},
+    "transport": {"name": "ManPro AI - Transport", "category": "Transport & Logistics", "image": "transport", "price": "₹3,999 / month", "note": "Up to 10 vehicles included", "lead": "Plan trips, track fleets and stay on top of deliveries with a logistics control centre built for dependable movement.", "use_case": "Give dispatchers, drivers and customers a dependable view of each trip—from planning to proof of delivery.", "features": ["Trip planning and dispatch control", "Vehicle, driver and document records", "Delivery status and expense tracking", "Route and fleet performance reports"], "highlights": [("Plan clearly", "Build confident dispatch schedules"), ("Track movement", "Know where important deliveries are"), ("Run efficiently", "Learn from every route and trip")]},
+    "electric": {"name": "ManPro AI - Electric", "category": "Electrical Service & Maintenance", "image": "electric", "price": "₹1,999 / month", "note": "For teams up to 10 technicians", "lead": "Equip electrical service teams with intelligent scheduling, field visibility and maintenance history that keeps customers powered.", "use_case": "Turn incoming service calls into organised jobs, reliable maintenance schedules and a clear record for every asset.", "features": ["Job scheduling and technician dispatch", "Digital service reports and checklists", "Preventive maintenance reminders", "Customer asset and warranty history"], "highlights": [("Field ready", "Keep technicians prepared for each job"), ("AI assisted", "Spot maintenance needs before downtime grows"), ("Service proof", "Create a digital history of every visit")]},
+}
+
+PRODUCT_PAGES["home"].update({
+    "modules": [
+        ("Smart Lighting", "Control every light, dimming level and ambience with schedules, scenes and voice commands."),
+        ("Climate Control", "Manage ACs, fans and comfort settings automatically based on time, presence or temperature."),
+        ("Smart Security", "Connect cameras, smart locks, door sensors and instant alerts in one protected home view."),
+        ("Energy Management", "Understand appliance use, reduce waste and automate energy-saving routines."),
+        ("Voice & Mobile Control", "Use natural voice commands or the ManPro AI Home app from anywhere."),
+        ("Automation Scenes", "Set Morning, Away, Movie, Good Night and custom scenes that coordinate your entire home."),
+    ],
+    "advantages": [
+        ("A home that responds to you", "Automation follows your preferences, routines and real-life moments—not the other way around."),
+        ("Comfort with control", "Adjust lighting, climate and devices from one simple app, whether you are on the sofa or away."),
+        ("Smarter security", "Receive useful alerts and keep connected to entrances, cameras and access without constant checking."),
+        ("Built to grow", "Start with one room or a few devices, then expand your connected home at your own pace."),
+    ],
+    "plans": [
+        ("Essential", "₹24,999", "Ideal for one connected space", ["Smart lighting starter setup", "Mobile app control", "2 automation scenes", "Installation support"]),
+        ("Comfort", "₹49,999", "For a connected apartment or villa", ["Everything in Essential", "Climate and security integration", "6 automation scenes", "Voice control setup"]),
+        ("Signature", "Custom", "A tailored intelligent-home experience", ["Everything in Comfort", "Whole-home design", "Premium integrations", "Dedicated implementation"]),
+    ],
+})
+
+PRODUCT_PAGES["erp"].update({"modules":[("Purchase & Supply", "Manage suppliers, purchase orders, invoices and outstanding balances."),("Sales & GST", "Create invoices, track collections and keep GST reporting ready."),("Inventory Control", "Monitor raw material, finished stock and reorder needs in real time."),("Production Planning", "Coordinate material consumption, production stages and finished goods."),("Accounts", "Stay on top of cash flow, ledgers, expenses and business performance."),("HR & Payroll", "Manage employees, attendance, advances and salary workflows.")],"advantages":[("One source of truth", "Every department works from connected, reliable business data."),("Faster decisions", "Live dashboards make the numbers that matter easy to see."),("Less manual work", "Automate linked purchase, stock, sales and accounts workflows."),("Ready to scale", "Add users, modules and workflows as your operation grows.")],"plans":[("Starter","₹999 / month","For teams moving beyond spreadsheets",["Up to 10 users","Purchase, sales and stock","GST reports","Cloud backup"]),("Professional","₹2,999 / month","For growing manufacturers",["Up to 50 users","Accounts and HR","Advanced reports","Priority support"]),("Business","₹4,999 / month","For advanced operations",["Up to 100 users","Production workflows","AI tools","Assisted implementation"]) ]})
+PRODUCT_PAGES["vision"].update({"modules":[("Live Monitoring", "See camera feeds and critical zones from one central workspace."),("AI Motion Detection", "Surface meaningful activity and reduce time spent reviewing footage."),("Face & Vehicle Recognition", "Add contextual awareness to access points and vehicle movement."),("Intrusion Alerts", "Receive timely alerts when attention is needed."),("Smart Analytics", "Review patterns, events and site activity with clear data."),("Multi-site Control", "Bring cameras across locations into one secure view.")],"advantages":[("Faster awareness", "AI helps the right events stand out at the right time."),("Security at scale", "Keep one site or many locations visible from anywhere."),("Clearer evidence", "Find and review important moments without endless searching."),("Peace of mind", "Stay connected to the spaces that matter most.")],"plans":[("Essential","₹14,999 / camera","For priority security zones",["AI-ready camera setup","Live monitoring","Motion alerts","Mobile access"]),("Secure","₹29,999 / camera","For complete site visibility",["Everything in Essential","Advanced AI detection","30-day storage","Central dashboard"]),("Enterprise","Custom","For multi-site security operations",["Tailored camera design","Multi-site management","Custom retention","Dedicated support"]) ]})
+PRODUCT_PAGES["pos"].update({"modules":[("Fast Billing", "Create quick bills, receipts and returns at the counter."),("Product Management", "Keep products, categories, prices and taxes organised."),("Inventory Sync", "Connect every sale with live product availability."),("Offers & Discounts", "Create promotions that work at checkout."),("Customer Loyalty", "Build repeat business with customer history and rewards."),("Sales Reports", "Understand daily performance by counter, product and store.")],"advantages":[("Shorter queues", "Fast, intuitive billing keeps customers moving."),("Better stock control", "Know what is selling and what needs attention."),("One store view", "See sales, people and performance from a single place."),("Ready for growth", "Add counters and outlets without losing control.")],"plans":[("Counter","₹1,499 / month","For a single retail counter",["One counter","Billing and receipts","Product catalogue","Daily reports"]),("Store","₹2,999 / month","For a busy retail store",["Up to 3 counters","Inventory sync","Offers and customers","Advanced reports"]),("Multi-store","Custom","For growing retail groups",["Multiple outlets","Centralised control","Custom integrations","Dedicated rollout"]) ]})
+PRODUCT_PAGES["transport"].update({"modules":[("Fleet Management", "Maintain vehicle records, documents and utilisation details."),("GPS Tracking", "Keep track of important movements and routes."),("Trip Management", "Plan dispatches, assign drivers and monitor progress."),("Driver Management", "Organise driver records, trips and documentation."),("Freight & Delivery", "Track costs, delivery status and proof of delivery."),("Route Analytics", "Learn from routes and fleet performance over time.")],"advantages":[("Clearer operations", "Keep dispatch, drivers and deliveries working from one plan."),("More reliable delivery", "Know the status of each important movement."),("Lower surprises", "Bring costs, documents and trip details into view."),("Smarter routes", "Use operational data to improve every journey.")],"plans":[("Fleet Start","₹3,999 / month","For up to 10 vehicles",["Trip planning","Vehicle records","Driver management","Basic reporting"]),("Fleet Pro","₹7,999 / month","For active logistics teams",["Up to 30 vehicles","GPS integration","Delivery tracking","Route analytics"]),("Enterprise","Custom","For large fleets and networks",["Custom fleet limits","Multi-branch control","Integrations","Implementation support"]) ]})
+PRODUCT_PAGES["electric"].update({"modules":[("Service Management", "Organise service requests, teams and customer commitments."),("Work Order Tracking", "Create, assign and complete jobs with a clear record."),("AI Fault Diagnosis", "Use guided intelligence to support faster issue assessment."),("Preventive Maintenance", "Plan recurring maintenance before downtime becomes costly."),("Inventory & Parts", "Track spares, materials and parts used for service."),("Reports & Analytics", "Understand workload, service quality and recurring issues.")],"advantages":[("Faster service", "Give technicians the information they need before arrival."),("Less downtime", "Stay ahead of maintenance and recurring electrical issues."),("Clear history", "Keep a dependable record for every customer asset."),("Better coordination", "Connect office, technicians and customers through one workflow.")],"plans":[("Service Start","₹1,999 / month","For teams up to 10 technicians",["Job scheduling","Digital reports","Customer records","Maintenance reminders"]),("Service Pro","₹4,999 / month","For growing service operations",["Up to 30 technicians","Parts tracking","AI fault assistance","Advanced reporting"]),("Enterprise","Custom","For complex field operations",["Custom workforce scale","Asset integrations","Tailored workflow","Dedicated support"]) ]})
+
+
+@app.get("/products/{product_key}")
+async def product_detail_page(request: Request, product_key: str):
+    product = PRODUCT_PAGES.get(product_key)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return templates.TemplateResponse(request=request, name="product_detail.html", context={"request": request, "product": product})
 
 
 @app.get("/manpro-admin/companies")
@@ -3044,6 +3091,46 @@ async def purchase_page(
         .all()
     )
 
+
+@app.get("/hdfoods/purchase")
+async def hdfoods_purchase_redirect(request: Request, from_date: str = "", to_date: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    from_date = from_date or (date.today() - timedelta(days=30)).isoformat()
+    to_date = to_date or date.today().isoformat()
+    db = SessionLocal()
+    try:
+        purchases = db.execute(text("""
+            SELECT p.purchase_id, p.purchase_date,
+                   COALESCE(NULLIF(s.company_name, ''), s.supplier_name, 'Unknown Vendor') AS supplier_name,
+                   COALESCE(NULLIF(p.invoice_no, ''), p.purchase_no) AS invoice_no,
+                   p.grand_total
+            FROM purchase p LEFT JOIN suppliers s ON s.id=p.supplier_id
+            WHERE p.purchase_date BETWEEN :from_date AND :to_date
+            ORDER BY p.purchase_date DESC, p.purchase_id DESC
+        """), {"from_date": from_date, "to_date": to_date}).mappings().all()
+        summary = db.execute(text("""
+            SELECT COUNT(*) AS purchase_count, COALESCE(SUM(grand_total), 0) AS purchase_amount
+            FROM purchase WHERE purchase_date BETWEEN :from_date AND :to_date
+        """), {"from_date": from_date, "to_date": to_date}).mappings().first()
+        vendor_count = db.execute(text("SELECT COUNT(*) FROM suppliers")).scalar() or 0
+    except Exception:
+        logger.exception("Unable to load HD Foods purchases")
+        purchases, summary, vendor_count = [], {"purchase_count": 0, "purchase_amount": 0}, 0
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_purchase.html", context={
+        "purchases": purchases, "from_date": from_date, "to_date": to_date,
+        "purchase_count": summary["purchase_count"], "purchase_amount": summary["purchase_amount"], "vendor_count": vendor_count,
+    })
+
+
+@app.get("/hdfoods/purchase/add")
+async def hdfoods_purchase_add_redirect(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    return RedirectResponse("/purchase/add", status_code=303)
+
     purchase_summary = (
         db.execute(
             text("""
@@ -3228,14 +3315,13 @@ def purchase_add(request: Request):
 
     company = db.execute(text("SELECT state, gst_number FROM company LIMIT 1")).mappings().first() or {}
 
+    is_hdfoods = str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS"
     materials = db.execute(text("""
-            SELECT
-                id,
-                material_name,
-                gst_percent,
-                purchase_price
-            FROM raw_materials
-            ORDER BY material_name
+            SELECT id, product_name AS material_name, gst_percent, purchase_price
+            FROM products ORDER BY product_name
+        """ if is_hdfoods else """
+            SELECT id, material_name, gst_percent, purchase_price
+            FROM raw_materials ORDER BY material_name
         """)).fetchall()
 
     invoice_no = next_purchase_number(db, date.today())
@@ -3251,6 +3337,8 @@ def purchase_add(request: Request):
             "invoice_no": invoice_no,
             "today": date.today().strftime("%Y-%m-%d"),
             "company": company,
+            "is_hdfoods": is_hdfoods,
+            "item_label": "Product" if is_hdfoods else "Material",
         },
     )
 
@@ -3292,9 +3380,9 @@ async def purchase_save(request: Request):
     try:
         parsed_quantities = [float(value) for value in qty]
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Material quantity must be a whole number")
+        raise HTTPException(status_code=400, detail="Product quantity must be a whole number" if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS" else "Material quantity must be a whole number")
     if any(value < 1 or not value.is_integer() for value in parsed_quantities):
-        raise HTTPException(status_code=400, detail="Material quantity must be a whole number of 1 or more")
+        raise HTTPException(status_code=400, detail="Product quantity must be a whole number of 1 or more" if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS" else "Material quantity must be a whole number of 1 or more")
 
     db = SessionLocal()
 
@@ -3456,20 +3544,15 @@ async def purchase_save(request: Request):
             },
         )
 
-        db.execute(
-            text("""
-                UPDATE raw_materials
-                SET stock_qty = stock_qty + :qty
-                WHERE id = :material_id
-            """),
-            {"qty": item["quantity"], "material_id": item["item_id"]},
-        )
+        stock_table = "products" if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS" else "raw_materials"
+        db.execute(text(f"UPDATE {stock_table} SET stock_qty = COALESCE(stock_qty, 0) + :qty WHERE id = :item_id"), {"qty": item["quantity"], "item_id": item["item_id"]})
 
     db.commit()
     db.close()
 
     saved_source = "ocr" if entry_source.lower() == "ocr" else "manual"
-    return RedirectResponse(url=f"/purchase?saved=1&source={saved_source}", status_code=303)
+    purchase_list_url = "/hdfoods/purchase" if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS" else "/purchase"
+    return RedirectResponse(url=f"{purchase_list_url}?saved=1&source={saved_source}", status_code=303)
 
 
 @app.get("/purchase/delete/{purchase_id}")
@@ -3541,14 +3624,13 @@ def purchase_edit(purchase_id: int, request: Request):
 
     company = db.execute(text("SELECT state, gst_number FROM company LIMIT 1")).mappings().first() or {}
 
+    is_hdfoods = str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS"
     materials = db.execute(text("""
-            SELECT
-                id,
-                material_name,
-                gst_percent,
-                purchase_price
-            FROM raw_materials
-            ORDER BY material_name
+            SELECT id, product_name AS material_name, gst_percent, purchase_price
+            FROM products ORDER BY product_name
+        """ if is_hdfoods else """
+            SELECT id, material_name, gst_percent, purchase_price
+            FROM raw_materials ORDER BY material_name
         """)).fetchall()
 
     db.close()
@@ -3562,6 +3644,8 @@ def purchase_edit(purchase_id: int, request: Request):
             "suppliers": suppliers,
             "materials": materials,
             "company": company,
+            "is_hdfoods": is_hdfoods,
+            "item_label": "Product" if is_hdfoods else "Material",
         },
     )
 
@@ -3590,6 +3674,8 @@ async def purchase_update(request: Request):
     gst_amount = form.getlist("gst_amount")
     line_total = form.getlist("line_total")
 
+    is_hdfoods = str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS"
+    stock_table = "products" if is_hdfoods else "raw_materials"
     db = SessionLocal()
 
     # ----------------------------
@@ -3609,15 +3695,7 @@ async def purchase_update(request: Request):
 
     for item in old_items:
 
-        db.execute(
-            text("""
-                UPDATE raw_materials
-                SET stock_qty =
-                    stock_qty - :qty
-                WHERE id=:material_id
-            """),
-            {"qty": item.quantity, "material_id": item.material_id},
-        )
+        db.execute(text(f"UPDATE {stock_table} SET stock_qty = COALESCE(stock_qty, 0) - :qty WHERE id=:item_id"), {"qty": item.quantity, "item_id": item.material_id})
 
     # ----------------------------
     # Delete Old Items
@@ -3740,20 +3818,12 @@ async def purchase_update(request: Request):
 
         # Add Stock Again
 
-        db.execute(
-            text("""
-                UPDATE raw_materials
-                SET stock_qty =
-                    stock_qty + :qty
-                WHERE id=:material_id
-            """),
-            {"qty": item["quantity"], "material_id": item["item_id"]},
-        )
+        db.execute(text(f"UPDATE {stock_table} SET stock_qty = COALESCE(stock_qty, 0) + :qty WHERE id=:item_id"), {"qty": item["quantity"], "item_id": item["item_id"]})
 
     db.commit()
     db.close()
 
-    return RedirectResponse("/purchase", status_code=303)
+    return RedirectResponse("/hdfoods/purchase" if is_hdfoods else "/purchase", status_code=303)
 
 
 def ensure_sales_order_tables(db, include_sales_references=False):
@@ -4062,6 +4132,10 @@ async def hdfoods_invoice_save(request: Request):
         values = {"no": invoice_no, "dt": invoice_date, "order_id": order_id, "customer_id": customer["customer_id"] if "customer_id" in customer else customer["id"], "subtotal": subtotal, "gst_percent": gst_percent, "gst_amount": gst_amount, "total": total}
         if invoice_id:
             if not db.execute(text("SELECT id FROM hdfoods_invoices WHERE id=:id"), {"id": invoice_id}).scalar(): raise HTTPException(status_code=404, detail="Invoice not found.")
+            # Restore the stock consumed by the old invoice before replacing it.
+            old_items = db.execute(text("SELECT product_name, quantity FROM hdfoods_invoice_items WHERE invoice_id=:id"), {"id": invoice_id}).mappings().all()
+            for old_item in old_items:
+                db.execute(text("UPDATE products SET stock_qty=COALESCE(stock_qty,0)+:qty WHERE product_name=:name"), {"qty": old_item["quantity"], "name": old_item["product_name"]})
             db.execute(text("""UPDATE hdfoods_invoices SET invoice_no=:no,invoice_date=:dt,order_id=:order_id,customer_id=:customer_id,subtotal=:subtotal,gst_percent=:gst_percent,gst_amount=:gst_amount,total_amount=:total WHERE id=:id"""), {**values, "id": invoice_id})
             db.execute(text("DELETE FROM hdfoods_invoice_items WHERE invoice_id=:id"), {"id": invoice_id})
         else:
@@ -4069,6 +4143,8 @@ async def hdfoods_invoice_save(request: Request):
             invoice_id = result.lastrowid
         for name, qty, price, line_total in clean_items:
             db.execute(text("INSERT INTO hdfoods_invoice_items (invoice_id,product_name,quantity,unit_price,line_total) VALUES (:invoice_id,:name,:qty,:price,:line_total)"), {"invoice_id": invoice_id, "name": name, "qty": qty, "price": price, "line_total": line_total})
+            # HD Foods sales invoices are the stock-out transaction.
+            db.execute(text("UPDATE products SET stock_qty=COALESCE(stock_qty,0)-:qty WHERE product_name=:name"), {"qty": qty, "name": name})
         db.commit()
         return {"id": invoice_id, "invoice_no": invoice_no}
     except HTTPException:
@@ -4210,6 +4286,89 @@ def hdfoods_order_status_view(request: Request):
         if order["status"] == "Ordered":
             order["status"] = "Order Placed"
     return templates.TemplateResponse(request=request,name="hdfoods_order_status.html",context={"orders":orders,"stages":stages})
+
+
+@app.get("/hdfoods/reports")
+def hdfoods_report_shortcut(request: Request, report: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    destinations = {
+        "order-pipeline": "/hdfoods/order-status", "delivery-performance": "/hdfoods/delivery-status",
+        "shop-order-value": "/hdfoods/orders", "product-demand": "/hdfoods/orders", "gst-orders": "/hdfoods/orders",
+        "quotation-conversion": "/hdfoods/quotations", "pending-quotations": "/hdfoods/quotations",
+        "sales-customer": "/hdfoods/billing", "sales-product": "/hdfoods/billing", "invoice-payments": "/hdfoods/billing",
+        "visit-activity": "/hdfoods/daily-visits", "followup-due": "/hdfoods/daily-visits?tab=followups",
+        "marketing-performance": "/hdfoods/daily-visits", "lead-outcomes": "/hdfoods/daily-visits?tab=disclosed",
+        "shop-conversion": "/hdfoods/shops", "shop-status": "/hdfoods/shops", "order-frequency": "/hdfoods/shops",
+        "customer-outstanding": "/hdfoods/collections", "new-onboarding": "/hdfoods/shops", "shop-sales-trend": "/hdfoods/shops",
+        "collections": "/hdfoods/collections", "invoice-ageing": "/hdfoods/billing", "gst-summary": "/hdfoods/billing",
+        "daily-expenses": "/expenses", "profitability": "/hdfoods/billing"}
+    return RedirectResponse(destinations.get(report, "/dashboard"), status_code=303)
+
+
+@app.get("/hdfoods/customer-ledger")
+def hdfoods_customer_ledger(request: Request, customer_id: int = 0, from_date: str = "", to_date: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    from_date, to_date = get_account_month_defaults(from_date, to_date)
+    db = SessionLocal()
+    try:
+        # The ledger can be opened before the Billing or Collections screens.
+        # Ensure the invoice/payment tables (and newer columns) exist before
+        # reading the selected customer's transactions.
+        _hdfoods_invoice_tables(db)
+        customers = db.execute(text("SELECT id, COALESCE(NULLIF(company_name,''), customer_name) AS customer_name FROM customers ORDER BY customer_name")).mappings().all()
+        selected_customer = next((row for row in customers if int(row["id"]) == customer_id), None)
+        rows, opening_balance = [], 0.0
+        if customer_id and table_exists(db, "hdfoods_invoices"):
+            rows.extend(dict(row) for row in db.execute(text("""SELECT invoice_date AS entry_date, invoice_no AS reference_no, 'Sales Invoice' AS entry_type, total_amount AS debit, 0 AS credit FROM hdfoods_invoices WHERE customer_id=:customer_id AND invoice_date BETWEEN :from_date AND :to_date"""), {"customer_id": customer_id, "from_date": from_date, "to_date": to_date}).mappings().all())
+            opening_balance += float(db.execute(text("SELECT COALESCE(SUM(total_amount),0) FROM hdfoods_invoices WHERE customer_id=:customer_id AND invoice_date < :from_date"), {"customer_id": customer_id, "from_date": from_date}).scalar() or 0)
+        if customer_id and table_exists(db, "hdfoods_invoice_payments"):
+            rows.extend(dict(row) for row in db.execute(text("""SELECT p.payment_date AS entry_date, COALESCE(NULLIF(p.reference_no,''), i.invoice_no) AS reference_no, CONCAT('Collection · ', p.payment_mode) AS entry_type, 0 AS debit, p.amount AS credit FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id WHERE i.customer_id=:customer_id AND p.payment_date BETWEEN :from_date AND :to_date"""), {"customer_id": customer_id, "from_date": from_date, "to_date": to_date}).mappings().all())
+            opening_balance -= float(db.execute(text("SELECT COALESCE(SUM(p.amount),0) FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id WHERE i.customer_id=:customer_id AND p.payment_date < :from_date"), {"customer_id": customer_id, "from_date": from_date}).scalar() or 0)
+        # SQLAlchemy returns DECIMAL columns as Decimal. Convert the monetary
+        # values once here so the Jinja running-balance calculation never mixes
+        # Decimal with the float opening balance.
+        for row in rows:
+            row["debit"] = float(row["debit"] or 0)
+            row["credit"] = float(row["credit"] or 0)
+        rows = sorted(rows, key=lambda row: (str(row["entry_date"]), str(row["reference_no"] or "")))
+        period_debit, period_credit = sum(float(row["debit"] or 0) for row in rows), sum(float(row["credit"] or 0) for row in rows)
+        closing_balance = opening_balance + period_debit - period_credit
+        company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first() or {}
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_customer_ledger.html", context={"customers": customers, "customer_id": customer_id, "selected_customer": selected_customer, "rows": rows, "from_date": from_date, "to_date": to_date, "opening_balance": opening_balance, "period_debit": period_debit, "period_credit": period_credit, "closing_balance": closing_balance, "company": company})
+
+
+@app.get("/hdfoods/stock-report")
+def hdfoods_stock_report(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    db = SessionLocal()
+    try:
+        products = [dict(row) for row in db.execute(text("""
+            SELECT id, product_name, category, stock_qty, purchase_price, sale_price, gst_percent
+            FROM products ORDER BY product_name
+        """)).mappings().all()]
+        company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first() or {}
+    finally:
+        db.close()
+    for product in products:
+        product["stock_qty"] = float(product.get("stock_qty") or 0)
+        product["purchase_price"] = float(product.get("purchase_price") or 0)
+        product["sale_price"] = float(product.get("sale_price") or 0)
+        product["stock_value"] = product["stock_qty"] * product["purchase_price"]
+        product["sale_value"] = product["stock_qty"] * product["sale_price"]
+        product["status"] = "No Stock" if product["stock_qty"] == 0 else ("Negative" if product["stock_qty"] < 0 else "In Stock")
+    return templates.TemplateResponse(request=request, name="hdfoods_stock_report.html", context={
+        "products": products, "company": company, "total_products": len(products),
+        "total_quantity": sum(product["stock_qty"] for product in products),
+        "total_stock_value": sum(product["stock_value"] for product in products),
+        "total_sale_value": sum(product["sale_value"] for product in products),
+        "zero_stock_count": sum(1 for product in products if product["stock_qty"] <= 0),
+        "report_date": date.today(),
+    })
 
 
 @app.get("/hdfoods/daily-visits")
@@ -8224,10 +8383,45 @@ def accounts_ledger(
         },
     ).mappings().all()
 
+    # HD Foods records purchases and billing in its operational tables rather
+    # than only in the manual account-transaction register.  Present those
+    # transactions in the date-wise ledger as well.
+    if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS":
+        hdfoods_ledger = []
+        if table_exists(db, "purchase"):
+            purchase_rows = db.execute(text("""
+                SELECT p.purchase_date AS transaction_date,
+                       'Vendor Purchases' AS account_name,
+                       'Expense' AS account_type,
+                       'Purchase' AS payment_mode,
+                       COALESCE(NULLIF(p.invoice_no,''), p.purchase_no) AS reference_no,
+                       CONCAT('Purchase from ', COALESCE(NULLIF(s.company_name,''), s.supplier_name, 'Vendor')) AS narration,
+                       0 AS income_amount, p.grand_total AS expense_amount
+                FROM purchase p LEFT JOIN suppliers s ON s.id=p.supplier_id
+                WHERE p.purchase_date BETWEEN :from_date AND :to_date
+            """), {"from_date": from_date, "to_date": to_date}).mappings().all()
+            hdfoods_ledger.extend(dict(row) for row in purchase_rows)
+        if table_exists(db, "hdfoods_invoices"):
+            invoice_rows = db.execute(text("""
+                SELECT i.invoice_date AS transaction_date,
+                       'Sales & Billing' AS account_name,
+                       'Income' AS account_type,
+                       'Invoice' AS payment_mode,
+                       i.invoice_no AS reference_no,
+                       CONCAT('Sales invoice to ', COALESCE(NULLIF(c.company_name,''), c.customer_name, 'Customer')) AS narration,
+                       i.total_amount AS income_amount, 0 AS expense_amount
+                FROM hdfoods_invoices i LEFT JOIN customers c ON c.id=i.customer_id
+                WHERE i.invoice_date BETWEEN :from_date AND :to_date
+            """), {"from_date": from_date, "to_date": to_date}).mappings().all()
+            hdfoods_ledger.extend(dict(row) for row in invoice_rows)
+        if account_type != "all":
+            hdfoods_ledger = [row for row in hdfoods_ledger if row["account_type"] == account_type]
+        ledger = sorted(hdfoods_ledger, key=lambda row: (str(row["transaction_date"]), str(row["reference_no"] or "")))
+
     company = db.execute(text("SELECT * FROM company LIMIT 1")).mappings().first()
 
-    total_income = sum(float(row.income_amount or 0) for row in ledger)
-    total_expense = sum(float(row.expense_amount or 0) for row in ledger)
+    total_income = sum(float(row["income_amount"] or 0) for row in ledger)
+    total_expense = sum(float(row["expense_amount"] or 0) for row in ledger)
     net_total = total_income - total_expense
 
     db.close()

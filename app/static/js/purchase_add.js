@@ -172,7 +172,7 @@ function addRow() {
 
             <td>
                 <select name="material_id" required onchange="fillMaterialDetails(this)">
-                    <option value="">Select Material</option>
+                    <option value="">Select ${typeof purchaseItemLabel !== "undefined" ? purchaseItemLabel : "Material"}</option>
                     ${materialsOptions}
                 </select>
             </td>

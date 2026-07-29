@@ -5,6 +5,7 @@
 {% endblock %}
 
 {% block content %}
+{% set is_hdfoods = request.session.get('tenant_company_code', '')|upper == 'HDFOODS' %}
 
 <div class="purchase-add-page">
 
@@ -101,7 +102,7 @@
                 <thead>
 
                     <tr>
-                        <th class="material-column">Material</th>
+                        <th class="material-column">{{ item_label }}</th>
                         <th>Qty</th>
                         <th>Rate</th>
                         <th>GST %</th>
@@ -223,6 +224,7 @@
 </option>
 {% endfor %}
 `;
+    let purchaseItemLabel = {{ item_label|tojson }};
 
 </script>
 

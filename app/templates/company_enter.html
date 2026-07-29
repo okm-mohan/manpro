@@ -10,14 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="/static/css/company_entry.css">
+    <link rel="stylesheet" href="/static/css/product_suite.css">
+    <link rel="stylesheet" href="/static/css/product_artwork.css">
+    <link rel="stylesheet" href="/static/css/product_details.css">
+    <link rel="stylesheet" href="/static/css/official_logo.css">
+    <link rel="stylesheet" href="/static/css/product_launch.css">
+    <link rel="stylesheet" href="/static/css/ecosystem_section.css">
 </head>
 <body>
 <header class="site-header">
     <a class="brand" href="#home" aria-label="ManPro Plus home">
-        <span class="brand-mark"><img src="/static/images/manpro-ai-brand-mark.png" alt="ManProAI logo mark"></span>
-        <span class="brand-wordmark"><img src="/static/images/manpro-ai-brand-wordmark.png" alt="ManProAI Business ERP"></span>
+        <span class="brand-emblem"><img src="/static/images/manpro-ai-official-mark.png" alt="ManPro AI emblem"></span><span class="brand-site-logo"><img src="/static/images/manpro-ai-site-logo.png" alt="ManPro AI Business ERP"></span>
     </a>
     <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#products">Products</a>
         <a href="#features">Features</a>
         <a href="#modules">Modules</a>
         <a href="#updates">Updates</a>
@@ -79,6 +85,18 @@
         </div>
     </section>
 
+    <section class="product-launch" aria-labelledby="launch-title">
+        <div class="launch-heading"><span class="eyebrow"><i class="fa-solid fa-wand-magic-sparkles"></i> The ManPro AI product family</span><h1 id="launch-title">One AI company.<em> Six powerful products.</em></h1><p>Intelligent software for the way you build, live, protect, sell, move and maintain.</p></div>
+        <div class="launch-grid" aria-label="Explore ManPro AI products">
+            <a href="/products/erp" class="launch-product"><img src="/static/images/manpro-ai-product-erp.png" alt="ManPro AI Business ERP"><span><i class="fa-solid fa-industry"></i> Business ERP <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+            <a href="/products/home" class="launch-product"><img src="/static/images/manpro-ai-product-home.png" alt="ManPro AI Home"><span><i class="fa-solid fa-house-signal"></i> Home <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+            <a href="/products/vision" class="launch-product"><img src="/static/images/manpro-ai-product-vision.png" alt="ManPro AI Vision"><span><i class="fa-solid fa-video"></i> Vision <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+            <a href="/products/pos" class="launch-product"><img src="/static/images/manpro-ai-product-pos.png" alt="ManPro AI Retail POS"><span><i class="fa-solid fa-cash-register"></i> Retail POS <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+            <a href="/products/transport" class="launch-product"><img src="/static/images/manpro-ai-product-transport.png" alt="ManPro AI Transport"><span><i class="fa-solid fa-truck-fast"></i> Transport <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+            <a href="/products/electric" class="launch-product"><img src="/static/images/manpro-ai-product-electric.png" alt="ManPro AI Electric"><span><i class="fa-solid fa-bolt"></i> Electric <b>Explore <i class="fa-solid fa-arrow-right"></i></b></span></a>
+        </div>
+    </section>
+
     <section class="proof-strip">
         <span>One platform for</span>
         <strong><i class="fa-solid fa-cart-flatbed"></i> Purchase</strong>
@@ -86,6 +104,16 @@
         <strong><i class="fa-solid fa-warehouse"></i> Inventory</strong>
         <strong><i class="fa-solid fa-calculator"></i> Accounts</strong>
         <strong><i class="fa-solid fa-users-gear"></i> HR &amp; Payroll</strong>
+    </section>
+
+    <section class="ecosystem-section" id="products">
+        <div class="section-heading"><span class="eyebrow">Why ManPro AI</span><h2>Technology that connects the work that matters.</h2><p>Every ManPro AI solution is built around practical outcomes: clearer information, faster action and confident growth.</p></div>
+        <div class="ecosystem-grid">
+            <article><span class="ecosystem-icon"><i class="fa-solid fa-brain"></i></span><h3>AI with a purpose</h3><p>Useful intelligence that helps people spot opportunities, automate routine work and make better decisions.</p></article>
+            <article><span class="ecosystem-icon"><i class="fa-solid fa-mobile-screen-button"></i></span><h3>Simple to use</h3><p>Thoughtful, accessible experiences for owners, teams, technicians and customers—wherever work happens.</p></article>
+            <article><span class="ecosystem-icon"><i class="fa-solid fa-shield-halved"></i></span><h3>Secure by design</h3><p>Reliable access, protected data and accountable workflows built into every part of the platform.</p></article>
+            <article><span class="ecosystem-icon"><i class="fa-solid fa-arrows-up-to-line"></i></span><h3>Ready to grow</h3><p>Start with the solution you need today and scale your teams, locations and capabilities over time.</p></article>
+        </div>
     </section>
 
     <section class="section product-showcase" id="product">
@@ -224,13 +252,32 @@
     </section>
 </main>
 
+<div class="product-modal" id="productModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modalProductName">
+    <button class="modal-close" type="button" aria-label="Close product details"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-product-visual" id="modalVisual"></div>
+    <div class="modal-content"><span class="eyebrow" id="modalCategory"></span><h2 id="modalProductName"></h2><p class="modal-lead" id="modalLead"></p><div class="modal-highlights" id="modalHighlights"></div><div class="modal-columns"><div><h3>What your team can do</h3><ul id="modalFeatures"></ul><div class="modal-use-case"><i class="fa-solid fa-sparkles"></i><div><strong>Made for daily work</strong><p id="modalUseCase"></p></div></div></div><div class="modal-price-card"><span>Starting from</span><strong id="modalPrice"></strong><small id="modalPriceNote"></small><a href="#contact" class="btn btn-primary modal-contact">Talk to our team <i class="fa-solid fa-arrow-right"></i></a><span class="price-assurance"><i class="fa-solid fa-circle-check"></i> Guided setup included</span></div></div></div>
+</div>
+
 <footer>
-    <div class="footer-brand"><a class="brand" href="#home"><span class="brand-mark"><img src="/static/images/manpro-ai-brand-mark.png" alt="ManProAI logo mark"></span><span class="brand-wordmark"><img src="/static/images/manpro-ai-brand-wordmark.png" alt="ManProAI Business ERP"></span></a><p>Smart manufacturing management for growing Indian businesses.</p></div>
+    <div class="footer-brand"><a class="brand" href="#home"><span class="brand-emblem"><img src="/static/images/manpro-ai-official-mark.png" alt="ManPro AI emblem"></span><span class="brand-site-logo"><img src="/static/images/manpro-ai-site-logo.png" alt="ManPro AI Business ERP"></span></a><p>Smart manufacturing management for growing Indian businesses.</p></div>
     <div><strong>Product</strong><a href="#features">Features</a><a href="#modules">Modules</a><a href="#pricing">Pricing</a><a href="#updates">Updates</a></div>
     <div><strong>Company</strong><a href="/founder">Founder &amp; CEO</a><a href="/founder#message">Founder Message</a><a href="#contact">Contact</a></div>
     <div><strong>Support</strong><a href="#company-access">Company Login</a><a href="#contact">Book a Demo</a><a href="#contact">Contact Support</a></div>
     <div><strong>Legal</strong><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Refund Policy</a></div>
     <p class="copyright">© 2026 ManPro Plus. All rights reserved.</p>
 </footer>
+<script>
+const productDetails = {
+ erp:{name:'ManPro AI - Business ERP',category:'Manufacturing & distribution',lead:'A connected business ERP that brings purchase, sales, production, inventory, GST, accounts and workforce management into one intelligent daily workflow.',price:'₹2,999 / month',note:'For growing teams · 15-day free trial',use:'From a purchase order to the final customer invoice, every department works from the same source of truth.',highlights:[['fa-solid fa-chart-line','Live control','See sales, stock and cash flow in real time'],['fa-solid fa-layer-group','One platform','Bring every essential business workflow together'],['fa-solid fa-shield-halved','Always protected','Private roles, permissions and cloud backup']],features:['Live dashboards for sales, stock and cash flow','Purchase-to-production workflows','GST-ready invoicing and accounts','Role-based access for every team']},
+ home:{name:'ManPro AI - Home',category:'AI home automation',lead:'Make your home work around you. Control lighting, security, climate and everyday routines from one thoughtful, AI-assisted experience.',price:'₹24,999 setup',note:'Hardware packages from ₹9,999',use:'Create routines that make your home comfortable, safe and energy-aware—whether you are home or away.',highlights:[['fa-solid fa-wand-magic-sparkles','One touch living','Control the spaces you use every day'],['fa-solid fa-leaf','Energy aware','Make smarter use of every unit of power'],['fa-solid fa-mobile-screen','Always connected','Control and check in from your phone']],features:['Smart lighting and scene control','Voice and mobile app control','Energy insights and automation','Secure access and real-time alerts']},
+ vision:{name:'ManPro AI - Vision',category:'AI CCTV surveillance',lead:'Turn video into actionable awareness with smart surveillance that helps your team review, detect and respond with confidence.',price:'₹14,999 / camera',note:'AI monitoring plans from ₹999/month',use:'Give your security team a clearer picture across entrances, sites and critical zones without endless manual review.',highlights:[['fa-solid fa-eye','See more','AI helps surface activity that needs attention'],['fa-solid fa-bell','Respond faster','Timely alerts go straight to your team'],['fa-solid fa-building-shield','Scale securely','Manage cameras across one or many locations']],features:['AI motion and activity detection','Centralised live camera monitoring','Instant mobile alerts and playback','Multi-site security overview']},
+ pos:{name:'ManPro AI - Retail POS',category:'Smart retail billing',lead:'Keep counters moving and your business in view with fast billing, inventory awareness and real-time retail insights.',price:'₹1,499 / month',note:'Per outlet · Hardware sold separately',use:'Serve customers faster at the counter while keeping products, offers and daily sales completely in sync.',highlights:[['fa-solid fa-bolt','Fast checkout','A smoother billing experience at peak hours'],['fa-solid fa-boxes-stacked','Stock aware','Keep the counter connected to inventory'],['fa-solid fa-chart-pie','Retail insight','Understand every store and every shift']],features:['Fast barcode billing and receipts','Live store inventory sync','Customer and loyalty management','Daily sales and counter reports']},
+ transport:{name:'ManPro AI - Transport',category:'Transport & logistics',lead:'Plan trips, track fleets and stay on top of deliveries with a logistics control centre built for dependable movement.',price:'₹3,999 / month',note:'Up to 10 vehicles included',use:'Give dispatchers, drivers and customers a dependable view of each trip—from planning to proof of delivery.',highlights:[['fa-solid fa-route','Plan clearly','Build confident dispatch schedules'],['fa-solid fa-location-dot','Track movement','Know where important deliveries are'],['fa-solid fa-gauge-high','Run efficiently','Learn from every route and trip']],features:['Trip planning and dispatch control','Vehicle, driver and document records','Delivery status and expense tracking','Route and fleet performance reports']},
+ electric:{name:'ManPro AI - Electric',category:'Electrical service & maintenance',lead:'Equip electrical service teams with intelligent scheduling, field visibility and maintenance history that keeps customers powered.',price:'₹1,999 / month',note:'For teams up to 10 technicians',use:'Turn incoming service calls into organised jobs, reliable maintenance schedules and a complete record for every asset.',highlights:[['fa-solid fa-screwdriver-wrench','Field ready','Keep technicians prepared for each job'],['fa-solid fa-brain','AI assisted','Spot maintenance needs before downtime grows'],['fa-solid fa-clipboard-check','Service proof','Create a clear digital history of every visit']],features:['Job scheduling and technician dispatch','Digital service reports and checklists','Preventive maintenance reminders','Customer asset and warranty history']}
+};
+const modal=document.getElementById('productModal'); const modalVisual=document.getElementById('modalVisual');
+document.querySelectorAll('.suite-card').forEach(card=>card.addEventListener('click',()=>{window.location.href='/products/'+card.dataset.product}));
+function closeProduct(){modal.classList.remove('is-open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open')}document.querySelector('.modal-close').addEventListener('click',closeProduct);modal.addEventListener('click',e=>{if(e.target===modal)closeProduct()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProduct()});document.querySelector('.modal-contact').addEventListener('click',closeProduct);
+</script>
 </body>
 </html>
