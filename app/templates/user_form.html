@@ -108,6 +108,25 @@
 
             </div>
 
+            <section class="screen-permissions">
+                <div class="screen-permissions-heading">
+                    <div>
+                        <span class="user-panel-label">Screen Access</span>
+                        <h3>Opening screen permissions</h3>
+                    </div>
+                    <p>Choose the ERP screens this user can open. Company-wide disabled screens remain unavailable.</p>
+                </div>
+                <div class="screen-permission-grid">
+                    {% for key, label in screens.items() %}
+                    <label class="screen-permission-option">
+                        <input type="checkbox" name="allowed_screens" value="{{ key }}" {% if key in allowed_screens %}checked{% endif %}>
+                        <span class="screen-permission-check"><i class="bi bi-check2"></i></span>
+                        <span>{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
             <div class="user-form-actions">
                 <a href="/users" class="btn-user-secondary">Cancel</a>
                 <button type="submit" class="btn-save-user">

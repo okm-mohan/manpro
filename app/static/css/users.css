@@ -268,6 +268,7 @@
 }
 
 .user-edit-action{ color:#4338ca; background:#e0e7ff; }
+.user-reset-action{ border:0; color:#b45309; background:#ffedd5; }
 .user-delete-action{ color:#be123c; background:#ffe4e6; }
 
 .user-empty-state{
@@ -343,6 +344,19 @@
     gap:8px;
     font-weight:850;
     text-decoration:none;
+}
+.btn-user-modal-reset{
+    border:1px solid #312e81;
+    color:#fff;
+    background:#4338ca;
+    min-height:42px;
+    border-radius:8px;
+    padding:0 16px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-weight:850;
 }
 .btn-user-modal-cancel{
     border:1px solid #c7d2fe;
@@ -425,6 +439,23 @@
     flex-wrap:wrap;
 }
 
+.screen-permissions{
+    margin-top:26px;
+    padding:22px;
+    border:1px solid #dbe3ff;
+    border-radius:8px;
+    background:#f8fafc;
+}
+.screen-permissions-heading{ display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.screen-permissions-heading h3{ margin:3px 0 0; color:#0f172a; font-size:18px; font-weight:850; }
+.screen-permissions-heading p{ max-width:430px; margin:0; color:#64748b; font-size:13px; line-height:1.55; }
+.screen-permission-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.screen-permission-option{ position:relative; display:flex; align-items:center; gap:9px; min-height:42px; padding:9px 11px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#334155; font-size:13px; font-weight:750; cursor:pointer; }
+.screen-permission-option input{ position:absolute; opacity:0; }
+.screen-permission-check{ width:18px; height:18px; border:1px solid #cbd5e1; border-radius:5px; display:flex; align-items:center; justify-content:center; color:transparent; flex:0 0 auto; }
+.screen-permission-option input:checked + .screen-permission-check{ border-color:#4338ca; background:#4338ca; color:#fff; }
+.screen-permission-option:has(input:checked){ border-color:#c7d2fe; background:#eef2ff; color:#312e81; }
+
 .btn-save-user,
 .btn-user-secondary{
     min-height:44px;
@@ -462,9 +493,13 @@
     .user-form-grid{
         grid-template-columns:1fr;
     }
+    .screen-permission-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .screen-permissions-heading{ flex-direction:column; }
 
     .btn-add-user,
     .btn-user-ghost{
         width:100%;
     }
 }
+
+@media(max-width:520px){ .screen-permission-grid{ grid-template-columns:1fr; } }

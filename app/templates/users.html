@@ -95,6 +95,10 @@ Users & Roles
                                     <i class="bi bi-pencil-square"></i>
                                     <span>Edit</span>
                                 </a>
+                                <button type="button" class="user-table-action user-reset-action" data-reset-user data-user-id="{{ item.id }}" data-user-name="{{ item.full_name or item.username }}">
+                                    <i class="bi bi-key"></i>
+                                    <span>Reset Password</span>
+                                </button>
                                 {% if item.username != request.session.get("user") %}
                                 <a href="/user/delete/{{ item.id }}"
                                    class="user-table-action user-delete-action"
@@ -125,6 +129,34 @@ Users & Roles
 
 </div>
 
+<div class="modal fade user-delete-modal" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="/user/reset-password">
+                <div class="modal-body reset-password-body">
+                    <div class="user-delete-icon reset-password-icon"><i class="bi bi-key"></i></div>
+                    <span class="user-delete-kicker">Administrator action</span>
+                    <h3>Reset password</h3>
+                    <p>Set a new password for <strong id="resetUserName">this user</strong>.</p>
+                    <input type="hidden" name="user_id" id="resetUserId">
+                    <div class="user-form-field text-start">
+                        <label for="adminResetPassword">New Password</label>
+                        <div class="user-input-shell"><i class="bi bi-lock"></i><input id="adminResetPassword" name="password" type="password" minlength="8" required></div>
+                    </div>
+                    <div class="user-form-field text-start mt-3">
+                        <label for="adminResetConfirmPassword">Confirm Password</label>
+                        <div class="user-input-shell"><i class="bi bi-shield-check"></i><input id="adminResetConfirmPassword" name="confirm_password" type="password" minlength="8" required></div>
+                    </div>
+                    <div class="user-delete-actions">
+                        <button type="button" class="btn-user-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-user-modal-reset"><i class="bi bi-check2-circle"></i><span>Reset Password</span></button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade user-delete-modal" id="deleteUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -153,6 +185,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const modalElement = document.getElementById("deleteUserModal");
     const confirmButton = document.getElementById("confirmDeleteUser");
     const userName = document.getElementById("deleteUserName");
+    const resetModalElement = document.getElementById("resetPasswordModal");
+    const resetUserName = document.getElementById("resetUserName");
+    const resetUserId = document.getElementById("resetUserId");
 
     if (!modalElement || !confirmButton || !window.bootstrap) {
         return;
@@ -168,6 +203,17 @@ document.addEventListener("DOMContentLoaded", function () {
             deleteModal.show();
         });
     });
+
+    if (resetModalElement) {
+        const resetModal = new bootstrap.Modal(resetModalElement);
+        document.querySelectorAll("[data-reset-user]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                resetUserId.value = button.dataset.userId;
+                resetUserName.textContent = button.dataset.userName || "this user";
+                resetModal.show();
+            });
+        });
+    }
 });
 </script>
 {% endblock %}

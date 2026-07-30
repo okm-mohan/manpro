@@ -98,7 +98,23 @@ class TenantDatabaseMiddleware(BaseHTTPMiddleware):
                 settings_db = SessionLocal()
                 try:
                     company_settings = load_company_settings(settings_db)
-                    request.state.screen_settings = screen_visibility(company_settings)
+                    current_user = settings_db.execute(text("""
+                        SELECT id FROM users WHERE username=:username LIMIT 1
+                    """), {"username": request.session.get("user")}).mappings().first()
+                    try:
+                        request.state.screen_settings = user_screen_visibility(
+                            settings_db,
+                            current_user["id"] if current_user else -1,
+                            company_settings,
+                            screen_definitions_for_request(request),
+                        )
+                    except Exception:
+                        # Keep the ERP usable if a legacy tenant cannot yet create
+                        # the optional per-user permissions table.
+                        settings_db.rollback()
+                        request.state.screen_settings = screen_visibility(
+                            company_settings, screen_definitions_for_request(request)
+                        )
                 finally:
                     settings_db.close()
 
@@ -368,6 +384,15 @@ SCREEN_DEFINITIONS = {
     "ai_chatbot": "AI Chatbot",
 }
 
+HDFOODS_SCREEN_DEFINITIONS = {
+    "hd_quotations": "Quotations", "hd_purchase": "Purchase", "hd_shops": "Shops & Customers",
+    "hd_live_orders": "Live Orders", "hd_orders_planning": "Orders Planning", "hd_order_status": "Order Status",
+    "hd_billing": "Billing", "hd_collections": "Collections", "hd_daily_visits": "Daily Visiting",
+    "hd_live_tracking": "Live Team Tracking", "hd_daily_expenses": "Daily Expenses", "hd_company": "My Company",
+    "hd_suppliers": "Vendor List", "hd_products": "Products List", "hd_employees": "Employees List",
+    "hd_finance_reports": "Finance Reports",
+}
+
 SCREEN_PATHS = {
     "purchase_gst_report": ("/purchase-gst-report",),
     "sales_gst_report": ("/sales-gst-report",),
@@ -394,7 +419,19 @@ SCREEN_PATHS = {
     "sales": ("/sales",),
     "accounts": ("/accounts", "/expenses", "/expense", "/income-expenses", "/account-head", "/account-transaction"),
     "hr": ("/hr", "/employee", "/employees", "/employee-advances", "/employee-attendance", "/salary-receipt"),
+    "hd_quotations": ("/hdfoods/quotations",), "hd_purchase": ("/hdfoods/purchase",),
+    "hd_shops": ("/hdfoods/shops",), "hd_live_orders": ("/hdfoods/orders",),
+    "hd_orders_planning": ("/hdfoods/delivery-status",), "hd_order_status": ("/hdfoods/order-status",),
+    "hd_billing": ("/hdfoods/billing",), "hd_collections": ("/hdfoods/collections",),
+    "hd_daily_visits": ("/hdfoods/daily-visits",), "hd_live_tracking": ("/hdfoods/live-team-tracking",),
+    "hd_daily_expenses": ("/expenses",), "hd_company": ("/company",), "hd_suppliers": ("/suppliers",),
+    "hd_products": ("/products",), "hd_employees": ("/employees",),
+    "hd_finance_reports": ("/accounts-ledger", "/hdfoods/customer-ledger", "/hdfoods/stock-report"),
 }
+
+
+def screen_definitions_for_request(request):
+    return HDFOODS_SCREEN_DEFINITIONS if str(request.session.get("tenant_company_code", "")).upper() == "HDFOODS" else SCREEN_DEFINITIONS
 
 _SETTINGS_READY_DATABASES = set()
 
@@ -445,11 +482,52 @@ def load_company_settings(db):
     return {row["setting_key"]: row["setting_value"] for row in rows}
 
 
-def screen_visibility(settings):
+def screen_visibility(settings, screen_definitions=SCREEN_DEFINITIONS):
     return {
         key: str(settings.get(f"screen.{key}", "1")).lower() in {"1", "true", "on", "yes"}
-        for key in SCREEN_DEFINITIONS
+        for key in screen_definitions
     }
+
+
+def ensure_user_screen_permissions_table(db):
+    """Use the existing tenant settings store for per-user permissions."""
+    ensure_company_settings_table(db)
+
+
+def user_screen_visibility(db, user_id, company_settings, screen_definitions=SCREEN_DEFINITIONS):
+    """Return effective access: a screen must be enabled for the company and user."""
+    ensure_user_screen_permissions_table(db)
+    permission_prefix = f"user_screen.{user_id}."
+    rows = db.execute(text("""
+        SELECT setting_key, setting_value FROM app_settings
+        WHERE setting_key LIKE :permission_prefix
+    """), {"permission_prefix": f"{permission_prefix}%"}).mappings().all()
+    user_permissions = {
+        row["setting_key"][len(permission_prefix):]: str(row["setting_value"]).lower() in {"1", "true", "on", "yes"}
+        for row in rows
+    }
+    company_permissions = screen_visibility(company_settings, screen_definitions)
+    return {
+        key: company_permissions[key] and user_permissions.get(key, True)
+        for key in screen_definitions
+    }
+
+
+def save_user_screen_permissions(db, user_id, selected_screens, screen_definitions=SCREEN_DEFINITIONS):
+    ensure_user_screen_permissions_table(db)
+    selected = set(selected_screens or [])
+    permission_prefix = f"user_screen.{user_id}."
+    db.execute(text("DELETE FROM app_settings WHERE setting_key LIKE :permission_prefix"), {
+        "permission_prefix": f"{permission_prefix}%"
+    })
+    for screen_key in screen_definitions:
+        db.execute(text("""
+            INSERT INTO app_settings (setting_key, setting_value)
+            VALUES (:setting_key, :setting_value)
+        """), {
+            "setting_key": f"{permission_prefix}{screen_key}",
+            "setting_value": "1" if screen_key in selected else "0",
+        })
 
 
 def screen_key_for_path(path):
@@ -894,7 +972,7 @@ async def settings_save(request: Request):
             "hdfoods_quotation_validity_days": str(quotation_validity_days),
             **{
                 f"screen.{key}": "1" if form.get(f"screen_{key}") else "0"
-                for key in SCREEN_DEFINITIONS
+        for key in screen_definitions
             },
         }
         return templates.TemplateResponse(
@@ -1006,6 +1084,14 @@ PRODUCT_PAGES["pos"].update({"modules":[("Fast Billing", "Create quick bills, re
 PRODUCT_PAGES["transport"].update({"modules":[("Fleet Management", "Maintain vehicle records, documents and utilisation details."),("GPS Tracking", "Keep track of important movements and routes."),("Trip Management", "Plan dispatches, assign drivers and monitor progress."),("Driver Management", "Organise driver records, trips and documentation."),("Freight & Delivery", "Track costs, delivery status and proof of delivery."),("Route Analytics", "Learn from routes and fleet performance over time.")],"advantages":[("Clearer operations", "Keep dispatch, drivers and deliveries working from one plan."),("More reliable delivery", "Know the status of each important movement."),("Lower surprises", "Bring costs, documents and trip details into view."),("Smarter routes", "Use operational data to improve every journey.")],"plans":[("Fleet Start","₹3,999 / month","For up to 10 vehicles",["Trip planning","Vehicle records","Driver management","Basic reporting"]),("Fleet Pro","₹7,999 / month","For active logistics teams",["Up to 30 vehicles","GPS integration","Delivery tracking","Route analytics"]),("Enterprise","Custom","For large fleets and networks",["Custom fleet limits","Multi-branch control","Integrations","Implementation support"]) ]})
 PRODUCT_PAGES["electric"].update({"modules":[("Service Management", "Organise service requests, teams and customer commitments."),("Work Order Tracking", "Create, assign and complete jobs with a clear record."),("AI Fault Diagnosis", "Use guided intelligence to support faster issue assessment."),("Preventive Maintenance", "Plan recurring maintenance before downtime becomes costly."),("Inventory & Parts", "Track spares, materials and parts used for service."),("Reports & Analytics", "Understand workload, service quality and recurring issues.")],"advantages":[("Faster service", "Give technicians the information they need before arrival."),("Less downtime", "Stay ahead of maintenance and recurring electrical issues."),("Clear history", "Keep a dependable record for every customer asset."),("Better coordination", "Connect office, technicians and customers through one workflow.")],"plans":[("Service Start","₹1,999 / month","For teams up to 10 technicians",["Job scheduling","Digital reports","Customer records","Maintenance reminders"]),("Service Pro","₹4,999 / month","For growing service operations",["Up to 30 technicians","Parts tracking","AI fault assistance","Advanced reporting"]),("Enterprise","Custom","For complex field operations",["Custom workforce scale","Asset integrations","Tailored workflow","Dedicated support"]) ]})
 
+PRODUCT_PAGES["erp"].update({
+    "editions": [
+        {"name": "Manufacturers Edition", "tag": "MAKE · CONTROL · GROW", "description": "A production-first ERP for businesses that buy materials, manufacture finished goods and need every cost visible.", "modules": ["Purchase & supplier management", "Bill of materials and production planning", "Raw material and finished-goods inventory", "Quality checks and production cost tracking", "Sales, GST, accounts, HR and payroll"]},
+        {"name": "Distributors Edition", "tag": "SELL · DELIVER · COLLECT", "description": "A field-ready ERP for distribution teams that need faster order capture, delivery control and dependable collections.", "modules": ["Customer, shop and price-list management", "Live orders and delivery planning", "Route and field-sales activity tracking", "Billing, collections and outstanding control", "Sales, GST, accounts and performance reports"]},
+    ],
+    "demo_accounts": [("Manufacturer demo", "Purchase, production, inventory, GST and accounts workflows"), ("Distributor demo", "Shops, live orders, deliveries, billing and collections workflows")],
+    "addons": [("Additional user", "Rs. 149 / user / month"), ("Payroll & HR", "Rs. 799 / month"), ("Field Sales & Delivery", "Rs. 999 / month"), ("AMC & Priority Care", "15% of annual licence value / year")],
+})
 
 @app.get("/products/{product_key}")
 async def product_detail_page(request: Request, product_key: str):
@@ -3199,9 +3285,6 @@ def ensure_purchase_order_tables(db):
     }.items():
         if column not in existing:
             db.execute(text(f"ALTER TABLE purchase_orders ADD COLUMN {column} {definition}"))
-    item_columns = {row["Field"] for row in db.execute(text("SHOW COLUMNS FROM purchase_order_items")).mappings().all()}
-    if "raw_material_id" not in item_columns:
-        db.execute(text("ALTER TABLE purchase_order_items ADD COLUMN raw_material_id INT NULL AFTER purchase_order_id"))
     db.execute(text("""
         CREATE TABLE IF NOT EXISTS purchase_order_items (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3214,6 +3297,9 @@ def ensure_purchase_order_tables(db):
             INDEX idx_po_items_order (purchase_order_id)
         )
     """))
+    item_columns = {row["Field"] for row in db.execute(text("SHOW COLUMNS FROM purchase_order_items")).mappings().all()}
+    if "raw_material_id" not in item_columns:
+        db.execute(text("ALTER TABLE purchase_order_items ADD COLUMN raw_material_id INT NULL AFTER purchase_order_id"))
     db.execute(text("""
         CREATE TABLE IF NOT EXISTS purchase_order_documents (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -9088,10 +9174,11 @@ def user_add(request: Request):
     if blocked:
         return blocked
 
+    screens = screen_definitions_for_request(request)
     return templates.TemplateResponse(
         request=request,
         name="user_form.html",
-        context={"request": request, "user": None},
+        context={"request": request, "user": None, "screens": screens, "allowed_screens": set(screens)},
     )
 
 
@@ -9104,6 +9191,7 @@ def user_save(
     email: str = Form(""),
     role: str = Form("User"),
     status: str = Form("Active"),
+    allowed_screens: List[str] = Form([]),
 ):
 
     blocked = admin_only_redirect(request)
@@ -9114,8 +9202,9 @@ def user_save(
         role = "User"
 
     db = SessionLocal()
+    screens = screen_definitions_for_request(request)
 
-    db.execute(
+    result = db.execute(
         text("""
             INSERT INTO users
             (
@@ -9146,6 +9235,8 @@ def user_save(
         },
     )
 
+    user_id = result.lastrowid
+    save_user_screen_permissions(db, user_id, allowed_screens, screens)
     db.commit()
     db.close()
 
@@ -9160,6 +9251,7 @@ def user_edit(user_id: int, request: Request):
         return blocked
 
     db = SessionLocal()
+    screens = screen_definitions_for_request(request)
 
     user = db.execute(
         text("""
@@ -9174,12 +9266,32 @@ def user_edit(user_id: int, request: Request):
         db.close()
         return RedirectResponse("/users", status_code=303)
 
+    allowed_screens = set(screens)
+    if user:
+        try:
+            ensure_user_screen_permissions_table(db)
+            permission_prefix = f"user_screen.{user_id}."
+            configured_permissions = db.execute(text("""
+                SELECT setting_key, setting_value FROM app_settings
+                WHERE setting_key LIKE :permission_prefix
+            """), {"permission_prefix": f"{permission_prefix}%"}).mappings().all()
+            if configured_permissions:
+                allowed_screens = {
+                    row["setting_key"][len(permission_prefix):]
+                    for row in configured_permissions
+                    if str(row["setting_value"]).lower() in {"1", "true", "on", "yes"}
+                }
+        except Exception:
+            db.rollback()
+            # Legacy tenant: show the edit form with all menu items selected.
+            allowed_screens = set(screens)
+
     db.close()
 
     return templates.TemplateResponse(
         request=request,
         name="user_form.html",
-        context={"request": request, "user": user},
+        context={"request": request, "user": user, "screens": screens, "allowed_screens": allowed_screens},
     )
 
 
@@ -9193,6 +9305,7 @@ def user_update(
     email: str = Form(""),
     role: str = Form("User"),
     status: str = Form("Active"),
+    allowed_screens: List[str] = Form([]),
 ):
 
     blocked = admin_only_redirect(request)
@@ -9200,6 +9313,7 @@ def user_update(
         return blocked
 
     db = SessionLocal()
+    screens = screen_definitions_for_request(request)
     ensure_password_recovery_schema(db)
     ensure_password_recovery_schema(db)
 
@@ -9240,10 +9354,37 @@ def user_update(
         },
     )
 
+    save_user_screen_permissions(db, user_id, allowed_screens, screens)
     db.commit()
     db.close()
 
     return RedirectResponse("/users", status_code=303)
+
+
+@app.post("/user/reset-password")
+def user_reset_password(
+    request: Request,
+    user_id: int = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    blocked = admin_only_redirect(request)
+    if blocked:
+        return blocked
+
+    password = password.strip()
+    if password != confirm_password or len(password) < 8:
+        return RedirectResponse("/users?reset_error=1", status_code=303)
+
+    db = SessionLocal()
+    user = db.execute(text("SELECT role FROM users WHERE id=:user_id"), {"user_id": user_id}).mappings().first()
+    if user and (not is_superadmin_role(user.get("role")) or is_superadmin_user(request)):
+        db.execute(text("UPDATE users SET password=:password WHERE id=:user_id"), {
+            "password": hash_password(password), "user_id": user_id,
+        })
+        db.commit()
+    db.close()
+    return RedirectResponse("/users?reset=1", status_code=303)
 
 
 @app.get("/user/delete/{user_id}")
@@ -9269,6 +9410,10 @@ def user_delete(user_id: int, request: Request):
     )
 
     if can_manage_user:
+        ensure_user_screen_permissions_table(db)
+        db.execute(text("DELETE FROM app_settings WHERE setting_key LIKE :permission_prefix"), {
+            "permission_prefix": f"user_screen.{user_id}.%"
+        })
         db.execute(text("DELETE FROM users WHERE id=:user_id"), {"user_id": user_id})
         db.commit()
 
