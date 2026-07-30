@@ -3177,46 +3177,6 @@ async def purchase_page(
         .all()
     )
 
-
-@app.get("/hdfoods/purchase")
-async def hdfoods_purchase_redirect(request: Request, from_date: str = "", to_date: str = ""):
-    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
-        return RedirectResponse("/dashboard", status_code=303)
-    from_date = from_date or (date.today() - timedelta(days=30)).isoformat()
-    to_date = to_date or date.today().isoformat()
-    db = SessionLocal()
-    try:
-        purchases = db.execute(text("""
-            SELECT p.purchase_id, p.purchase_date,
-                   COALESCE(NULLIF(s.company_name, ''), s.supplier_name, 'Unknown Vendor') AS supplier_name,
-                   COALESCE(NULLIF(p.invoice_no, ''), p.purchase_no) AS invoice_no,
-                   p.grand_total
-            FROM purchase p LEFT JOIN suppliers s ON s.id=p.supplier_id
-            WHERE p.purchase_date BETWEEN :from_date AND :to_date
-            ORDER BY p.purchase_date DESC, p.purchase_id DESC
-        """), {"from_date": from_date, "to_date": to_date}).mappings().all()
-        summary = db.execute(text("""
-            SELECT COUNT(*) AS purchase_count, COALESCE(SUM(grand_total), 0) AS purchase_amount
-            FROM purchase WHERE purchase_date BETWEEN :from_date AND :to_date
-        """), {"from_date": from_date, "to_date": to_date}).mappings().first()
-        vendor_count = db.execute(text("SELECT COUNT(*) FROM suppliers")).scalar() or 0
-    except Exception:
-        logger.exception("Unable to load HD Foods purchases")
-        purchases, summary, vendor_count = [], {"purchase_count": 0, "purchase_amount": 0}, 0
-    finally:
-        db.close()
-    return templates.TemplateResponse(request=request, name="hdfoods_purchase.html", context={
-        "purchases": purchases, "from_date": from_date, "to_date": to_date,
-        "purchase_count": summary["purchase_count"], "purchase_amount": summary["purchase_amount"], "vendor_count": vendor_count,
-    })
-
-
-@app.get("/hdfoods/purchase/add")
-async def hdfoods_purchase_add_redirect(request: Request):
-    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
-        return RedirectResponse("/dashboard", status_code=303)
-    return RedirectResponse("/purchase/add", status_code=303)
-
     purchase_summary = (
         db.execute(
             text("""
@@ -3262,6 +3222,46 @@ async def hdfoods_purchase_add_redirect(request: Request):
             "save_source": source,
         },
     )
+
+
+@app.get("/hdfoods/purchase")
+async def hdfoods_purchase_redirect(request: Request, from_date: str = "", to_date: str = ""):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    from_date = from_date or (date.today() - timedelta(days=30)).isoformat()
+    to_date = to_date or date.today().isoformat()
+    db = SessionLocal()
+    try:
+        purchases = db.execute(text("""
+            SELECT p.purchase_id, p.purchase_date,
+                   COALESCE(NULLIF(s.company_name, ''), s.supplier_name, 'Unknown Vendor') AS supplier_name,
+                   COALESCE(NULLIF(p.invoice_no, ''), p.purchase_no) AS invoice_no,
+                   p.grand_total
+            FROM purchase p LEFT JOIN suppliers s ON s.id=p.supplier_id
+            WHERE p.purchase_date BETWEEN :from_date AND :to_date
+            ORDER BY p.purchase_date DESC, p.purchase_id DESC
+        """), {"from_date": from_date, "to_date": to_date}).mappings().all()
+        summary = db.execute(text("""
+            SELECT COUNT(*) AS purchase_count, COALESCE(SUM(grand_total), 0) AS purchase_amount
+            FROM purchase WHERE purchase_date BETWEEN :from_date AND :to_date
+        """), {"from_date": from_date, "to_date": to_date}).mappings().first()
+        vendor_count = db.execute(text("SELECT COUNT(*) FROM suppliers")).scalar() or 0
+    except Exception:
+        logger.exception("Unable to load HD Foods purchases")
+        purchases, summary, vendor_count = [], {"purchase_count": 0, "purchase_amount": 0}, 0
+    finally:
+        db.close()
+    return templates.TemplateResponse(request=request, name="hdfoods_purchase.html", context={
+        "purchases": purchases, "from_date": from_date, "to_date": to_date,
+        "purchase_count": summary["purchase_count"], "purchase_amount": summary["purchase_amount"], "vendor_count": vendor_count,
+    })
+
+
+@app.get("/hdfoods/purchase/add")
+async def hdfoods_purchase_add_redirect(request: Request):
+    if str(request.session.get("tenant_company_code") or "").upper() != "HDFOODS":
+        return RedirectResponse("/dashboard", status_code=303)
+    return RedirectResponse("/purchase/add", status_code=303)
 
 
 def ensure_purchase_order_tables(db):
