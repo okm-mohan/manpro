@@ -92,6 +92,21 @@ Edit Raw Material
                         PCS
                         </option>
 
+                        <option value="Roll"
+                        {% if material.unit in ['Roll', 'ROLL'] %}selected{% endif %}>
+                        Roll
+                        </option>
+
+                        <option value="BOX"
+                        {% if material.unit=='BOX' %}selected{% endif %}>
+                        BOX
+                        </option>
+
+                        <option value="MTR"
+                        {% if material.unit=='MTR' %}selected{% endif %}>
+                        MTR
+                        </option>
+
                     </select>
                 </div>
 
