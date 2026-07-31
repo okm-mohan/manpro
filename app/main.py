@@ -10572,6 +10572,20 @@ async def forgot_password_reset(
 
 @app.get("/login")
 async def login_page(request: Request):
+    # Public tenant websites can send their users straight to the correct
+    # company login page, without asking them to manually type the company code.
+    direct_company_code = str(request.query_params.get("company_code") or "").strip().upper()
+    if direct_company_code:
+        company = get_tenant_by_code(direct_company_code)
+        if company:
+            request.session.clear()
+            store_selected_company(request, company)
+        else:
+            return RedirectResponse(
+                f"/company-enter?company_code={quote(direct_company_code)}",
+                status_code=303,
+            )
+
     blocked = require_company_selection(request)
     if blocked:
         return blocked
