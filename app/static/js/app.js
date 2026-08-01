@@ -218,16 +218,35 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    let current = window.location.pathname.toLowerCase();
+    const currentUrl = new URL(window.location.href);
+    const currentPath = currentUrl.pathname.toLowerCase().replace(/\/+$/, "") || "/";
 
-    const matchingMenuLinks = Array.from(document.querySelectorAll(".menu-list a")).filter(function(link){
-        return new URL(link.href).pathname.toLowerCase() === current;
-    });
+    // Match both the route and any query string supplied by a report link.
+    // This keeps similar HDFoods screens (for example the report views) from
+    // highlighting several sidebar items at the same time.
+    const matchingMenuLinks = Array.from(document.querySelectorAll(".menu-list a")).map(function(link){
+        const linkUrl = new URL(link.href, window.location.origin);
+        const linkPath = linkUrl.pathname.toLowerCase().replace(/\/+$/, "") || "/";
+        if (linkPath !== currentPath) return null;
 
-    // A route can appear in more than one menu item. Highlight only the first
-    // matching item so the current page always has one clear active state.
+        const queryEntries = Array.from(linkUrl.searchParams.entries());
+        const queryMatches = queryEntries.every(function(entry){
+            return currentUrl.searchParams.get(entry[0]) === entry[1];
+        });
+        if (!queryMatches) return null;
+
+        return {
+            link: link,
+            // A query-specific link is more precise than a generic route.
+            score: (queryEntries.length * 100) + Number(link.dataset.menuPriority || 0)
+        };
+    }).filter(Boolean);
+
+    // A route can appear in more than one menu item. Highlight the most
+    // specific matching item, leaving one clear active state in the sidebar.
     if (matchingMenuLinks.length) {
-        matchingMenuLinks[0].classList.add("active");
+        matchingMenuLinks.sort(function(a, b){ return b.score - a.score; });
+        matchingMenuLinks[0].link.classList.add("active");
     }
 
     // Keep the containing expandable sidebar group open for the active page.

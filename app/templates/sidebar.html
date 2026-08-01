@@ -7,48 +7,46 @@
     <div class="logo-section"><div class="company-logo"><div class="logo-circle"><img src="/static/images/hdfoods-logo.png" alt="HD Foods" style="width:100%;height:100%;object-fit:contain;border-radius:10px;background:#fff"></div><div class="company-name"><span class="company-title">HD FOODS</span></div></div></div>
     <ul class="menu-list">
         <li><a href="/dashboard"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a></li>
-        <li class="menu-heading">Field Operations</li>
-        {% if screens.get('hd_quotations', true) %}<li><a href="/hdfoods/quotations"><i class="bi bi-file-earmark-text"></i><span>Quotations</span></a></li>{% endif %}
-        {% if screens.get('hd_purchase', true) %}<li><a href="/hdfoods/purchase"><i class="bi bi-cart-plus"></i><span>Purchase</span></a></li>{% endif %}
-        {% if screens.get('hd_shops', true) %}<li><a href="/hdfoods/shops"><i class="bi bi-shop"></i><span>Shops &amp; Customers</span></a></li>{% endif %}
+        <li class="menu-heading">Orders</li>
         {% if screens.get('hd_live_orders', true) %}<li><a href="/hdfoods/orders"><i class="bi bi-clipboard-check"></i><span>Live Orders</span></a></li>{% endif %}
         {% if screens.get('hd_orders_planning', true) %}<li><a href="/hdfoods/delivery-status"><i class="bi bi-calendar-week"></i><span>Orders Planning</span></a></li>{% endif %}
-        {% if screens.get('hd_order_status', true) %}<li><a href="/hdfoods/order-status"><i class="bi bi-signpost-split"></i><span>Order Status</span></a></li>{% endif %}
+        {% if screens.get('hd_order_status', true) %}<li><a href="/hdfoods/order-status"><i class="bi bi-signpost-split"></i><span>Orders Status</span></a></li>{% endif %}
         {% if screens.get('hd_billing', true) %}<li><a href="/hdfoods/billing"><i class="bi bi-receipt"></i><span>Billing</span></a></li>{% endif %}
         {% if screens.get('hd_collections', true) %}<li><a href="/hdfoods/collections"><i class="bi bi-wallet2"></i><span>Collections</span></a></li>{% endif %}
 
         <li class="menu-heading">Marketing</li>
         {% if screens.get('hd_daily_visits', true) %}<li><a href="/hdfoods/daily-visits"><i class="bi bi-geo-alt"></i><span>Daily Visiting</span></a></li>{% endif %}
+        {% if screens.get('hd_quotations', true) %}<li><a href="/hdfoods/quotations"><i class="bi bi-file-earmark-text"></i><span>Quotations</span></a></li>{% endif %}
         {% if screens.get('hd_live_tracking', true) %}<li><a href="/hdfoods/live-team-tracking"><i class="bi bi-broadcast-pin"></i><span>Live Team Tracking</span></a></li>{% endif %}
 
-        <li class="menu-heading">Accounts</li>
-        {% if screens.get('hd_daily_expenses', true) %}<li><a href="/expenses"><i class="bi bi-cash-stack"></i><span>Daily Expenses</span></a></li>{% endif %}
+        <li class="menu-heading">Purchase</li>
+        {% if screens.get('hd_purchase', true) %}<li><a href="/hdfoods/purchase"><i class="bi bi-cart-plus"></i><span>Purchase</span></a></li>{% endif %}
+        <li><a href="/hdfoods/stock-report"><i class="bi bi-box-seam"></i><span>Stock List</span></a></li>
+        <li><a href="/products?view=upcoming"><i class="bi bi-boxes"></i><span>Upcoming Products</span></a></li>
 
         <li class="menu-group"><details><summary><span>Master</span><i class="bi bi-chevron-down"></i></summary><ul>
-          {% if screens.get('hd_company', true) %}<li><a href="/company"><i class="bi bi-building"></i><span>My Company</span></a></li>{% endif %}
+          {% if screens.get('hd_shops', true) %}<li><a href="/hdfoods/shops"><i class="bi bi-shop"></i><span>Shops &amp; Customers</span></a></li>{% endif %}
           {% if screens.get('hd_suppliers', true) %}<li><a href="/suppliers"><i class="bi bi-truck"></i><span>Vendor List</span></a></li>{% endif %}
-          {% if screens.get('hd_products', true) %}<li><a href="/products"><i class="bi bi-box-seam"></i><span>Products List</span></a></li><li><a href="/products"><i class="bi bi-boxes"></i><span>Upcoming Products</span></a></li>{% endif %}
+          {% if screens.get('hd_products', true) %}<li><a href="/products" data-menu-priority="10"><i class="bi bi-box-seam"></i><span>Products List</span></a></li>{% endif %}
           {% if screens.get('hd_employees', true) %}<li><a href="/employees"><i class="bi bi-people"></i><span>Employees List</span></a></li>{% endif %}
         </ul></details></li>
 
         <li class="menu-heading">Reports</li>
-        <li class="menu-group"><details><summary><span>Finance</span><i class="bi bi-chevron-down"></i></summary><ul>
-          <li><a href="/accounts-ledger"><i class="bi bi-journal-text"></i><span>Ledger Report</span></a></li><li><a href="/hdfoods/customer-ledger"><i class="bi bi-person-lines-fill"></i><span>Customer Ledger</span></a></li><li><a href="/hdfoods/stock-report"><i class="bi bi-box-seam"></i><span>Stock Report</span></a></li><li><a href="#" aria-disabled="true"><i class="bi bi-wallet2"></i><span>Current Balance</span></a></li><li><a href="#" aria-disabled="true"><i class="bi bi-graph-up-arrow"></i><span>Profit &amp; Loss Report</span></a></li><li><a href="/hdfoods/reports?report=collections"><i class="bi bi-cash-stack"></i><span>Collections Report</span></a></li><li><a href="/hdfoods/reports?report=invoice-ageing"><i class="bi bi-calendar-range"></i><span>Unpaid Invoice Ageing</span></a></li><li><a href="/hdfoods/reports?report=gst-summary"><i class="bi bi-percent"></i><span>GST Summary</span></a></li><li><a href="/hdfoods/reports?report=daily-expenses"><i class="bi bi-receipt-cutoff"></i><span>Daily Expense Summary</span></a></li><li><a href="/hdfoods/reports?report=profitability"><i class="bi bi-pie-chart"></i><span>Profitability Snapshot</span></a></li>
+        <li class="menu-group"><details><summary><span>Accounts</span><i class="bi bi-chevron-down"></i></summary><ul>
+          <li><a href="/accounts"><i class="bi bi-speedometer2"></i><span>Account Status</span></a></li><li><a href="/hdfoods/collections?view=payments"><i class="bi bi-person-check"></i><span>Customer Payments</span></a></li><li><a href="/purchase"><i class="bi bi-credit-card-2-front"></i><span>Vendor Payments</span></a></li><li><a href="/accounts-ledger"><i class="bi bi-journal-text"></i><span>Ledger Report</span></a></li><li><a href="/hdfoods/reports?report=profitability"><i class="bi bi-pie-chart"></i><span>Profit &amp; Loss Report</span></a></li><li><a href="/expenses"><i class="bi bi-receipt-cutoff"></i><span>Expenses Tracking</span></a></li>
         </ul></details></li>
-        <li class="menu-group"><details><summary><span>Field Operations</span><i class="bi bi-chevron-down"></i></summary><ul>
-          <li><a href="/hdfoods/reports?report=order-pipeline"><i class="bi bi-signpost-split"></i><span>Order Status Pipeline</span></a></li><li><a href="/hdfoods/reports?report=delivery-performance"><i class="bi bi-truck"></i><span>Delivery Performance</span></a></li><li><a href="/hdfoods/reports?report=shop-order-value"><i class="bi bi-shop"></i><span>Order Value by Shop</span></a></li><li><a href="/hdfoods/reports?report=product-demand"><i class="bi bi-box-seam"></i><span>Product Demand Analysis</span></a></li><li><a href="/hdfoods/reports?report=gst-orders"><i class="bi bi-receipt"></i><span>GST Orders Summary</span></a></li>
+        <li class="menu-group"><details><summary><span>Summary Reports</span><i class="bi bi-chevron-down"></i></summary><ul>
+          <li><a href="/hdfoods/reports?report=sales-customer"><i class="bi bi-graph-up-arrow"></i><span>Sales Summary</span></a></li><li><a href="/purchase-reports"><i class="bi bi-cart-check"></i><span>Purchase Summary</span></a></li><li><a href="/hdfoods/reports?report=product-demand"><i class="bi bi-boxes"></i><span>Products Summary</span></a></li><li><a href="/stock-valuation-report"><i class="bi bi-box-seam"></i><span>Valuation Report</span></a></li>
         </ul></details></li>
-        <li class="menu-group"><details><summary><span>Quotations &amp; Sales</span><i class="bi bi-chevron-down"></i></summary><ul>
-          <li><a href="/hdfoods/reports?report=quotation-conversion"><i class="bi bi-file-earmark-check"></i><span>Quotation Conversion</span></a></li><li><a href="/hdfoods/reports?report=pending-quotations"><i class="bi bi-hourglass-split"></i><span>Pending / Ignored Quotes</span></a></li><li><a href="/hdfoods/reports?report=sales-customer"><i class="bi bi-people"></i><span>Sales by Customer</span></a></li><li><a href="/hdfoods/reports?report=sales-product"><i class="bi bi-boxes"></i><span>Sales by Product</span></a></li><li><a href="/hdfoods/reports?report=invoice-payments"><i class="bi bi-cash-coin"></i><span>Invoice &amp; Payment Summary</span></a></li>
+        <li class="menu-group"><details><summary><span>Detailed Reports</span><i class="bi bi-chevron-down"></i></summary><ul>
+          <li><a href="/sales-reports"><i class="bi bi-file-earmark-bar-graph"></i><span>Sales Reports</span></a></li><li><a href="/hdfoods/reports?report=collections"><i class="bi bi-cash-stack"></i><span>Collection Reports</span></a></li><li><a href="/hdfoods/reports?report=lead-outcomes"><i class="bi bi-chat-square-text"></i><span>Lead &amp; Conversions</span></a></li><li><a href="/hdfoods/reports?report=shop-sales-trend"><i class="bi bi-bar-chart"></i><span>Shop wise Sales Trend</span></a></li>
         </ul></details></li>
-        <li class="menu-group"><details><summary><span>Marketing</span><i class="bi bi-chevron-down"></i></summary><ul>
-          <li><a href="/hdfoods/reports?report=visit-activity"><i class="bi bi-geo-alt"></i><span>Daily Visit Activity</span></a></li><li><a href="/hdfoods/reports?report=followup-due"><i class="bi bi-bell"></i><span>Follow-up Due Report</span></a></li><li><a href="/hdfoods/reports?report=marketing-performance"><i class="bi bi-person-badge"></i><span>Marketing Person Performance</span></a></li><li><a href="/hdfoods/reports?report=lead-outcomes"><i class="bi bi-chat-square-text"></i><span>Interested / Disclosed Leads</span></a></li><li><a href="/hdfoods/reports?report=shop-conversion"><i class="bi bi-arrow-repeat"></i><span>Shop Conversion Report</span></a></li>
-        </ul></details></li>
-        <li class="menu-group"><details><summary><span>Shops &amp; Customers</span><i class="bi bi-chevron-down"></i></summary><ul>
-          <li><a href="/hdfoods/reports?report=shop-status"><i class="bi bi-toggle-on"></i><span>Active vs Inactive Shops</span></a></li><li><a href="/hdfoods/reports?report=order-frequency"><i class="bi bi-graph-up"></i><span>Customer Order Frequency</span></a></li><li><a href="/hdfoods/reports?report=customer-outstanding"><i class="bi bi-wallet2"></i><span>Customer Outstanding</span></a></li><li><a href="/hdfoods/reports?report=new-onboarding"><i class="bi bi-person-plus"></i><span>New Shop Onboarding</span></a></li><li><a href="/hdfoods/reports?report=shop-sales-trend"><i class="bi bi-bar-chart"></i><span>Shop-wise Sales Trend</span></a></li>
+        <li class="menu-group"><details><summary><span>GST Reports</span><i class="bi bi-chevron-down"></i></summary><ul>
+          <li><a href="/sales-gst-report"><i class="bi bi-file-earmark-spreadsheet"></i><span>Sales Statement</span></a></li><li><a href="/purchase-gst-report"><i class="bi bi-receipt-cutoff"></i><span>Purchase Statement</span></a></li>
         </ul></details></li>
         <li class="menu-heading">Workspace</li>
         <li><a href="/users"><i class="bi bi-shield-lock"></i><span>Users &amp; Permissions</span></a></li>
+        <li><a href="/company"><i class="bi bi-building"></i><span>My Company</span></a></li>
         <li><a href="/upgrade-plan"><i class="bi bi-gem"></i><span>My Plan</span></a></li>
         <li><a href="/settings"><i class="bi bi-sliders2"></i><span>Settings</span></a></li>
         <li><a href="/logout"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a></li>

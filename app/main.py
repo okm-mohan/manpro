@@ -1745,22 +1745,47 @@ async def dashboard(request: Request):
     db = SessionLocal()
 
     if str(request.session.get("tenant_company_code") or "").upper() == "HDFOODS":
-        today_sales_value = db.execute(text("SELECT IFNULL(SUM(grand_total),0) FROM sales WHERE sale_date=CURDATE()")).scalar() or 0
         customer_count = db.execute(text("SELECT COUNT(*) FROM customers")).scalar() or 0
+        today_sales_value = 0
+        today_orders = []
+        recent_followups = []
+        recent_collections = []
+        recent_shops = []
+        recent_invoices = []
+        daily_sales_chart = []
         try:
-            today_orders = db.execute(text("""SELECT o.order_number,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name,o.quantity FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.delivery_date=CURDATE() ORDER BY o.id DESC""")).mappings().all()
-            today_collections = db.execute(text("""SELECT p.amount,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,i.invoice_no FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id JOIN customers c ON c.id=i.customer_id WHERE p.payment_date=CURDATE() ORDER BY p.id DESC""")).mappings().all()
-            uncleared_invoices = db.execute(text("""SELECT i.invoice_no,i.total_amount,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id WHERE i.payment_status<>'Paid' ORDER BY i.id DESC LIMIT 5""")).mappings().all()
+            _hdfoods_invoice_tables(db)
+            today_sales_value = db.execute(text("SELECT COALESCE(SUM(total_amount),0) FROM hdfoods_invoices WHERE invoice_date=CURDATE()")).scalar() or 0
+            today_orders = db.execute(text("""SELECT o.order_number,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,p.product_name,o.quantity,o.status,o.delivery_time FROM hdfoods_live_orders o JOIN customers c ON c.id=o.customer_id JOIN products p ON p.id=o.product_id WHERE o.delivery_date=CURDATE() ORDER BY o.id DESC LIMIT 5""")).mappings().all()
+            recent_collections = db.execute(text("""SELECT p.payment_date,p.amount,p.payment_mode,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name,i.invoice_no FROM hdfoods_invoice_payments p JOIN hdfoods_invoices i ON i.id=p.invoice_id JOIN customers c ON c.id=i.customer_id ORDER BY p.payment_date DESC,p.id DESC LIMIT 5""")).mappings().all()
+            recent_invoices = db.execute(text("""SELECT i.invoice_no,i.invoice_date,i.total_amount,i.payment_status,COALESCE(NULLIF(c.company_name,''),c.customer_name) customer_name FROM hdfoods_invoices i JOIN customers c ON c.id=i.customer_id ORDER BY i.invoice_date DESC,i.id DESC LIMIT 5""")).mappings().all()
+            daily_sales_chart = db.execute(text("""SELECT invoice_date,COALESCE(SUM(total_amount),0) amount FROM hdfoods_invoices WHERE invoice_date >= DATE_SUB(CURDATE(), INTERVAL 13 DAY) GROUP BY invoice_date ORDER BY invoice_date""")).mappings().all()
         except Exception:
-            today_orders, today_collections, uncleared_invoices = [], [], []
+            db.rollback()
+        try:
+            recent_shops = db.execute(text("""SELECT id,COALESCE(NULLIF(company_name,''),customer_name) customer_name,mobile,created_at FROM customers ORDER BY id DESC LIMIT 10""")).mappings().all()
+            recent_followups = db.execute(text("""SELECT v.shop_name,v.visit_outcome,v.next_followup_date,COALESCE(e.employee_name,'Unassigned') marketing_person FROM hdfoods_daily_visits v LEFT JOIN employees e ON e.id=v.marketing_person_id WHERE (v.visit_outcome IN ('Follow-up required','Interested') OR v.followup_status='On Follow-up') AND COALESCE(v.followup_status,'None') <> 'Disclosed' ORDER BY COALESCE(v.next_followup_date,v.visit_date),v.id DESC LIMIT 5""")).mappings().all()
+        except Exception:
+            db.rollback()
+        chart_by_date = {row["invoice_date"]: float(row["amount"] or 0) for row in daily_sales_chart}
+        chart_days = [{"label": (date.today() - timedelta(days=offset)).strftime("%d %b"), "amount": chart_by_date.get(date.today() - timedelta(days=offset), 0)} for offset in range(13, -1, -1)]
+        followups_due = len(recent_followups)
+        today_visits = 0
+        completed_visits = 0
+        try:
+            today_visits = db.execute(text("SELECT COUNT(*) FROM hdfoods_daily_visits WHERE visit_date=CURDATE()")).scalar() or 0
+            completed_visits = today_visits
+        except Exception:
+            db.rollback()
         db.close()
         return templates.TemplateResponse(request=request, name="hdfoods_dashboard.html", context={
             "request": request,
             "full_name": request.session.get("full_name", request.session["user"]),
-            "today_visits": 0, "completed_visits": 0, "followups_due": 0,
+            "today_visits": today_visits, "completed_visits": completed_visits, "followups_due": followups_due,
             "today_sales": today_sales_value, "customer_count": customer_count,
             "delivery_overdue": 0, "delivery_due_today": 0, "delivery_due_soon": 0,
-            "today_orders": today_orders, "today_collections": today_collections, "uncleared_invoices": uncleared_invoices,
+            "today_orders": today_orders, "recent_followups": recent_followups, "recent_collections": recent_collections,
+            "recent_shops": recent_shops, "recent_invoices": recent_invoices, "daily_sales_chart": chart_days,
         })
 
     today_sales = db.execute(text("""
