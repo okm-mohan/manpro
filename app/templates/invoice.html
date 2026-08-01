@@ -1,460 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <title>Invoice</title>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tax Invoice — {{ sale.invoice_number }}</title>
     <link rel="stylesheet" href="/static/css/invoice.css">
-
 </head>
-
 <body>
+    <nav class="invoice-toolbar no-print" aria-label="Invoice actions">
+        <a href="/sales">← Back to Sales</a>
+        <button type="button" onclick="window.print()">Print A4 Invoice</button>
+    </nav>
 
-    <div class="invoice-page">
-
-        <div class="invoice">
-
-            <!-- ========================================= -->
-            <!-- HEADER -->
-            <!-- ========================================= -->
-
-            <div class="header">
-
-                <div class="company">
-
-                    <h2>{{ company.company_name }}</h2>
-
-                    <p>{{ company.address }}</p>
-
-                    <p>
-                        {{ company.city }},
-                        {{ company.state }}
-                        -
-                        {{ company.pincode }}
-                    </p>
-
-                    <p>
-
-                        Phone :
-                        {{ company.phone }}
-
-                    </p>
-
-                    <p>
-
-                        Email :
-                        {{ company.email }}
-
-                    </p>
-
-                    <p>
-
-                        GSTIN :
-                        {{ company.gst_number }}
-
-                    </p>
-
+    <main class="tax-invoice">
+        <header class="invoice-header">
+            <section class="seller-block">
+                <div class="brand-mark">{{ (company.company_name or 'M')[:1] }}</div>
+                <div>
+                    <p class="eyebrow">TAX INVOICE</p>
+                    <h1>{{ company.company_name or 'Your Company Name' }}</h1>
+                    <p class="company-address">{{ company.address or 'Company address' }}{% if company.city %}, {{ company.city }}{% endif %}{% if company.state %}, {{ company.state }}{% endif %}{% if company.pincode %} — {{ company.pincode }}{% endif %}</p>
+                    <p class="company-contact">{% if company.phone %}Phone: {{ company.phone }}{% endif %}{% if company.email %} &nbsp;•&nbsp; {{ company.email }}{% endif %}</p>
+                    <p class="company-gstin">GSTIN: <strong>{{ company.gst_number or 'Not registered' }}</strong></p>
                 </div>
+            </section>
+            <section class="document-block">
+                <h2>INVOICE</h2>
+                <div class="meta-row"><span>Invoice No.</span><strong>{{ sale.invoice_number }}</strong></div>
+                <div class="meta-row"><span>Invoice Date</span><strong>{{ sale.sale_date.strftime('%d-%m-%Y') if sale.sale_date else '—' }}</strong></div>
+                <div class="meta-row"><span>Place of supply</span><strong>{{ sale.place_of_supply or '—' }}</strong></div>
+                <div class="meta-row"><span>Tax type</span><strong>{{ sale.tax_type or 'GST' }}</strong></div>
+            </section>
+        </header>
 
-                <div class="invoice-title">
+        <section class="bill-to">
+            <p class="section-label">BILL TO</p>
+            <h3>{{ sale.company_name or sale.customer_name or 'Customer' }}</h3>
+            <p>{{ sale.address or 'Address not added' }}</p>
+            <p>{% if sale.mobile %}Phone: {{ sale.mobile }}{% endif %}{% if sale.email %} &nbsp;•&nbsp; {{ sale.email }}{% endif %}</p>
+            <p>GSTIN: <strong>{{ sale.gst_number or 'Unregistered' }}</strong></p>
+        </section>
 
-                    <h1>INVOICE</h1>
+        <table class="invoice-items">
+            <thead>
+                <tr>
+                    <th class="serial">S/N</th>
+                    <th>Description of goods / services</th>
+                    <th>HSN / SAC</th>
+                    <th class="number">Qty</th>
+                    <th class="number">Rate</th>
+                    <th class="number">GST</th>
+                    <th class="number">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="serial">{{ loop.index }}</td>
+                    <td><strong>{{ item.product_name or item.product_code or 'Product' }}</strong>{% if item.product_code %}<small>Code: {{ item.product_code }}</small>{% endif %}</td>
+                    <td>{{ item.hsn_code or '—' }}</td>
+                    <td class="number">{{ '%.2f'|format(item.quantity or 0) }}</td>
+                    <td class="number">₹ {{ '%.2f'|format(item.price or 0) }}</td>
+                    <td class="number">{{ '%.2f'|format(item.gst_percent or 0) }}%</td>
+                    <td class="number">₹ {{ '%.2f'|format(item.total or 0) }}</td>
+                </tr>
+                {% endfor %}
+                {% for _ in range([8 - items|length, 0]|max) %}
+                <tr class="blank-line"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-                    <table>
-
-                        <tr>
-
-                            <td>Date</td>
-
-                            <td>{{ sale.sale_date }}</td>
-
-                        </tr>
-
-                        <tr>
-
-                            <td>Invoice #</td>
-
-                            <td>{{ sale.invoice_number }}</td>
-
-                        </tr>
-
-                        <tr>
-
-                            <td>Customer ID</td>
-
-                            <td>{{ sale.customer_id }}</td>
-
-                        </tr>
-
-                    </table>
-
-                </div>
-
+        <section class="invoice-summary">
+            <div class="payment-panel">
+                <h3>Payment &amp; bank details</h3>
+                <dl>
+                    <div><dt>Account name</dt><dd>{{ company.company_name or '—' }}</dd></div>
+                    <div><dt>Bank name</dt><dd>{{ company.bank_name or 'Bank details available on request' }}</dd></div>
+                    <div><dt>Account number</dt><dd>{{ company.bank_account_number or '—' }}</dd></div>
+                    <div><dt>IFSC code</dt><dd>{{ company.ifsc_code or '—' }}</dd></div>
+                </dl>
+                <div class="words"><b>Amount in words</b><p>{{ amount_in_words }}</p></div>
             </div>
-
-            <!-- ========================================= -->
-            <!-- BILL TO / SHIP TO -->
-            <!-- ========================================= -->
-
-            <div class="address-row">
-
-                <div class="address-box">
-
-                    <div class="title">
-
-                        BILL TO :
-
-                    </div>
-
-                    <p>
-
-                        <b>{{ sale.company_name or sale.customer_name }}</b>
-
-                    </p>
-
-                    <p>
-
-                        {{ sale.address }}
-
-                    </p>
-
-                    <p>
-
-                        {{ sale.mobile }}
-
-                    </p>
-
-                    <p>
-
-                        GST :
-
-                        {{ sale.gst_number }}
-
-                    </p>
-
-                </div>
-
-                <div class="address-box">
-
-                    <div class="title">
-
-                        SHIP TO :
-
-                    </div>
-
-                    <p>
-
-                        <b>{{ sale.company_name or sale.customer_name }}</b>
-
-                    </p>
-
-                    <p>
-
-                        {{ sale.address }}
-
-                    </p>
-
-                    <p>
-
-                        {{ sale.mobile }}
-
-                    </p>
-
-                    <p>
-
-                        {{ sale.email }}
-
-                    </p>
-
-                </div>
-
-            </div>
-
-            <!-- ========================================= -->
-            <!-- SHIPPING INFO -->
-            <!-- ========================================= -->
-
-            
-            <!-- ========================================= -->
-            <!-- ITEM TABLE -->
-            <!-- ========================================= -->
-
-            <table class="item-table">
-
-                <thead>
-
-                    <tr>
-
-                        <th width="70">ITEM #</th>
-
-                        <th>DESCRIPTION</th>
-
-                        <th width="80">QTY</th>
-
-                        <th width="110">UNIT PRICE</th>
-
-                        <th width="120">TOTAL</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {% for item in items %}
-
-                    <tr>
-
-                        <td>
-
-                            {{ item.product_code }}
-
-                        </td>
-
-                        <td>
-
-                            <b>{{ item.product_name }}</b>
-
-                        </td>
-
-                        <td align="center">
-
-                            {{ item.quantity }}
-
-                        </td>
-
-                        <td align="right">
-
-                            {{ "%.2f"|format(item.price) }}
-
-                        </td>
-
-                        <td align="right">
-
-                            {{ "%.2f"|format(item.total) }}
-
-                        </td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                    <!-- Fill Remaining Rows for A4 Height -->
-
-                    {% for i in range(7) %}
-
-                    <tr>
-
-                        <td>&nbsp;</td>
-
-                        <td></td>
-
-                        <td></td>
-
-                        <td></td>
-
-                        <td></td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </tbody>
-
+            <table class="totals-table">
+                <tr><td>Taxable value</td><td>₹ {{ '%.2f'|format(sale.total_amount or 0) }}</td></tr>
+                {% if sale.cgst_amount or sale.sgst_amount %}
+                <tr><td>CGST</td><td>₹ {{ '%.2f'|format(sale.cgst_amount or 0) }}</td></tr>
+                <tr><td>SGST</td><td>₹ {{ '%.2f'|format(sale.sgst_amount or 0) }}</td></tr>
+                {% endif %}
+                {% if sale.igst_amount %}<tr><td>IGST</td><td>₹ {{ '%.2f'|format(sale.igst_amount or 0) }}</td></tr>{% endif %}
+                <tr><td>Round off</td><td>₹ 0.00</td></tr>
+                <tr class="grand-total"><td>Grand total</td><td>₹ {{ '%.2f'|format(sale.grand_total or 0) }}</td></tr>
             </table>
-
-            <!-- ===================================== -->
-            <!-- BOTTOM SECTION -->
-            <!-- ===================================== -->
-
-            <div class="bottom-section">
-
-                <!-- Left Side -->
-
-                <div class="instruction-box">
-
-                    <div class="instruction-title">
-
-                        Other Comments or Special Instructions
-
-                    </div>
-
-                    <ol>
-
-                        <li>
-
-                            Total payment due in 30 days.
-
-                        </li>
-
-                        <li>
-
-                            Please include the invoice number on your payment.
-
-                        </li>
-
-                    </ol>
-
-                    <div class="amount-words">
-
-                        <strong>Amount in Words</strong>
-
-                        <p class="amount-in-words">
-    {{ amount_in_words }}
-</p>
-
-                    </div>
-
-                </div>
-
-                <!-- Right Side -->
-
-                <div class="total-box">
-
-                    <table>
-
-                        <tr>
-
-                            <td>SUBTOTAL</td>
-
-                            <td align="right">
-
-                                ₹ {{ "%.2f"|format(sale.total_amount) }}
-
-                            </td>
-
-                        </tr>
-
-                        <tr>
-
-                            <td>TAX TYPE</td>
-
-                            <td align="right">
-
-                                {{ sale.tax_type or "GST" }}
-
-                            </td>
-
-                        </tr>
-
-                        <tr>
-
-                            <td>TOTAL GST</td>
-
-                            <td align="right">
-
-                                ₹ {{ "%.2f"|format(sale.gst_amount) }}
-
-                            </td>
-
-                        </tr>
-
-                        {% if sale.cgst_amount or sale.sgst_amount %}
-                        <tr><td>CGST</td><td align="right">&#8377; {{ "%.2f"|format(sale.cgst_amount or 0) }}</td></tr>
-                        <tr><td>SGST</td><td align="right">&#8377; {{ "%.2f"|format(sale.sgst_amount or 0) }}</td></tr>
-                        {% endif %}
-                        {% if sale.igst_amount %}
-                        <tr><td>IGST</td><td align="right">&#8377; {{ "%.2f"|format(sale.igst_amount or 0) }}</td></tr>
-                        {% endif %}
-
-                        <tr>
-
-                            <td>OTHER</td>
-
-                            <td align="right">
-
-                                ₹ 0.00
-
-                            </td>
-
-                        </tr>
-
-                        <tr class="grand">
-
-                            <td>
-
-                                <b>TOTAL</b>
-
-                            </td>
-
-                            <td align="right">
-
-                                <b>
-
-                                    ₹ {{ "%.2f"|format(sale.grand_total) }}
-
-                                </b>
-
-                            </td>
-
-                        </tr>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-            <!-- ===================================== -->
-            <!-- PAYMENT NOTE -->
-            <!-- ===================================== -->
-
-            <div class="payment-note">
-
-                Make all checks payable to
-
-                <br>
-
-                <strong>
-
-                    {{ company.company_name }}
-
-                </strong>
-
-            </div>
-
-            <!-- ===================================== -->
-            <!-- FOOTER -->
-            <!-- ===================================== -->
-
-
-            <!-- ===================================== -->
-            <!-- SIGNATURE -->
-            <!-- ===================================== -->
-
-            <div class="signature">
-
-                ___________________________
-
-                <br>
-
-                Authorized Signature
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <script>
-
-        window.onload = function () {
-
-            const params = new URLSearchParams(window.location.search);
-
-            if (params.get("print") == "1") {
-
-                window.print();
-
-            }
-
-        }
-
-    </script>
-
+        </section>
+
+        <footer class="invoice-footer">
+            <section class="declaration"><h3>Declaration</h3><p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p><p>Goods once sold are subject to the agreed payment and delivery terms.</p></section>
+            <section class="signature"><p>For {{ company.company_name or 'Your Company' }}</p><div class="signature-space"></div><strong>Authorised Signatory</strong></section>
+        </footer>
+        <p class="generated-note">This is a computer-generated tax invoice.</p>
+    </main>
+    {% if request.query_params.get('print') %}<script>window.addEventListener('load', () => window.print())</script>{% endif %}
 </body>
-
 </html>

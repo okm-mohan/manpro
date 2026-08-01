@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="/static/css/company_entry.css">
+    <link rel="stylesheet" href="/static/css/company_entry_login_cta.css">
     <link rel="stylesheet" href="/static/css/product_suite.css">
     <link rel="stylesheet" href="/static/css/product_artwork.css">
     <link rel="stylesheet" href="/static/css/product_details.css">
@@ -31,7 +32,7 @@
         <a href="/founder">Founder</a>
         <a href="#contact">Contact</a>
     </nav>
-    <a class="header-login" href="#company-access"><i class="fa-regular fa-building"></i> Customer Login</a>
+    <a class="header-login" href="/company-enter" aria-label="Open your ERP workspace"><i class="fa-solid fa-arrow-right-to-bracket"></i><span>ERP Login<small>Secure workspace</small></span><i class="fa-solid fa-arrow-right header-login-arrow" aria-hidden="true"></i></a>
 </header>
 
 <main>
@@ -42,7 +43,7 @@
             <p>Bring purchase, sales, stock, GST, accounts, production and workforce management together—without complicated software or scattered spreadsheets.</p>
             <div class="hero-actions">
                 <a class="btn btn-primary" href="#pricing">Get 15 Days Free <i class="fa-solid fa-arrow-right"></i></a>
-                <a class="btn btn-secondary" href="#company-access"><i class="fa-regular fa-circle-play"></i> Open My Company</a>
+                <a class="btn btn-secondary" href="/company-enter"><i class="fa-solid fa-arrow-right-to-bracket"></i> ERP Login</a>
             </div>
             <div class="hero-trust">
                 <span><i class="fa-solid fa-check"></i> No credit card required</span>
@@ -222,6 +223,7 @@
         <p class="pricing-note">Taxes and one-time implementation charges may apply. Final scope is confirmed before purchase.</p>
     </section>
 
+    {# ERP company-code entry is intentionally kept on the dedicated /company-enter page.
     <section class="access-section" id="company-access">
         <div class="access-copy">
             <span class="eyebrow">Existing customer?</span>
@@ -239,6 +241,7 @@
             <small>Don’t know your company code? <a href="#contact">Contact support</a></small>
         </div>
     </section>
+    #}
 
     <section class="section founder-section" id="founder">
         <div class="founder-profile-mark"><i class="fa-solid fa-user-tie"></i></div>
@@ -262,7 +265,7 @@
     <div class="footer-brand"><a class="brand" href="#home"><span class="brand-emblem"><img src="/static/images/manpro-ai-official-mark.png" alt="ManPro AI emblem"></span><span class="brand-site-logo"><img src="/static/images/manpro-ai-site-logo.png" alt="ManPro AI Business ERP"></span></a><p>Smart manufacturing management for growing Indian businesses.</p></div>
     <div><strong>Product</strong><a href="#features">Features</a><a href="#modules">Modules</a><a href="#pricing">Pricing</a><a href="#updates">Updates</a></div>
     <div><strong>Company</strong><a href="/founder">Founder &amp; CEO</a><a href="/founder#message">Founder Message</a><a href="#contact">Contact</a></div>
-    <div><strong>Support</strong><a href="#company-access">Company Login</a><a href="#contact">Book a Demo</a><a href="#contact">Contact Support</a></div>
+    <div><strong>Support</strong><a href="/company-enter">ERP Login</a><a href="#contact">Book a Demo</a><a href="#contact">Contact Support</a></div>
     <div><strong>Legal</strong><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Refund Policy</a></div>
     <p class="copyright">© 2026 ManPro Plus. All rights reserved.</p>
 </footer>

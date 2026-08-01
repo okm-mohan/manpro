@@ -72,6 +72,7 @@ class TenantDatabaseMiddleware(BaseHTTPMiddleware):
         token = None
         path = request.url.path
         public_paths = (
+            "/",
             "/company-enter",
             "/products",
             "/founder",
@@ -1043,7 +1044,7 @@ async def company_enter_page(request: Request):
 
     return templates.TemplateResponse(
         request=request,
-        name="company_enter.html",
+        name="erp_company_enter.html",
         context={
             "request": request,
             "error": "",
@@ -1224,7 +1225,7 @@ async def company_enter(
 
         return templates.TemplateResponse(
             request=request,
-            name="company_enter.html",
+            name="erp_company_enter.html",
             context={
                 "request": request,
                 "error": "Company code not found or inactive.",
@@ -1237,7 +1238,50 @@ async def company_enter(
     request.session.clear()
     store_selected_company(request, company)
 
+    if str(company.get("company_code") or "").upper() == "DEMO":
+        return RedirectResponse("/demo-access", status_code=303)
+
     return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/demo-access")
+async def demo_access(request: Request):
+    """Open the isolated Demo workspace with its active administrator account."""
+    if str(request.session.get("tenant_company_code") or "").upper() != "DEMO":
+        return RedirectResponse("/company-enter", status_code=303)
+
+    # Demo tenant databases can be on older schemas, so avoid requiring
+    # optional columns such as full_name, role, or status in SQL itself.
+    db = SessionLocal()
+    try:
+        demo_users = [dict(row) for row in db.execute(text("SELECT * FROM users")).mappings().all()]
+    finally:
+        db.close()
+
+    admin_roles = {"admin", "administrator", "super admin"}
+    user = next(
+        (
+            row for row in demo_users
+            if str(row.get("status") or "Active").lower() == "active"
+            and str(row.get("role") or "").strip().lower() in admin_roles
+        ),
+        None,
+    )
+    if not user:
+        user = next(
+            (row for row in demo_users if str(row.get("status") or "Active").lower() == "active"),
+            None,
+        )
+
+    if not user or not user.get("username"):
+        return RedirectResponse("/login", status_code=303)
+
+    request.session["user"] = user["username"]
+    request.session["full_name"] = user.get("full_name") or user["username"]
+    request.session["role"] = user.get("role") or "Admin"
+    request.session["plan_name"] = request.session.get("tenant_plan_name", "")
+    request.session["remember_me"] = False
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/trial/register")
@@ -1823,16 +1867,15 @@ async def dashboard(request: Request):
 
     sales_chart = db.execute(text("""
         SELECT
-            DATE_FORMAT(sale_date, '%b') AS month_name,
-            MONTH(sale_date) AS month_no,
+            DATE_FORMAT(sale_date, '%d %b') AS sale_day,
             IFNULL(SUM(grand_total),0) AS sale_amount
         FROM sales
-        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
-        GROUP BY YEAR(sale_date), MONTH(sale_date), DATE_FORMAT(sale_date, '%b')
-        ORDER BY YEAR(sale_date), MONTH(sale_date)
+        WHERE sale_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+        GROUP BY sale_date
+        ORDER BY sale_date
     """)).mappings().all()
 
-    sales_chart_labels = [row["month_name"] for row in sales_chart]
+    sales_chart_labels = [row["sale_day"] for row in sales_chart]
     sales_chart_values = [float(row["sale_amount"] or 0) for row in sales_chart]
 
     db.close()
@@ -10683,6 +10726,11 @@ async def logout(request: Request):
     tenant_context = selected_company_context(request)
     tenant_database_url = request.session.get("tenant_database_url")
     request.session.clear()
+
+    # The Demo workspace is a public product preview, so exiting it should
+    # return visitors to the ManPro AI website rather than another login step.
+    if str(tenant_context.get("company_code") or "").upper() == "DEMO":
+        return RedirectResponse("/", status_code=303)
 
     if tenant_database_url:
         request.session["tenant_company_code"] = tenant_context["company_code"]

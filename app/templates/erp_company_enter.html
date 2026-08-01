@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP Login | ManPro AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/erp_company_enter.css">
+    <link rel="stylesheet" href="/static/css/erp_company_enter_refinement.css">
+</head>
+<body>
+    <main class="erp-entry-page">
+        <section class="entry-showcase">
+            <a class="entry-brand" href="/"><img src="/static/images/manpro-ai-horizontal-logo.png" alt="ManPro AI Business ERP"></a>
+            <div class="entry-copy"><span>MANPRO AI PRODUCT FAMILY</span><h1>One secure login.<br><em>Every workspace.</em></h1><p>Enter the company code shared during your onboarding to open your private ManPro AI workspace.</p></div>
+            <div class="product-thumbnails" aria-label="ManPro AI products">
+                <img src="/static/images/manpro-ai-product-erp.png" alt="Business ERP"><img src="/static/images/manpro-ai-product-home.png" alt="Home"><img src="/static/images/manpro-ai-product-vision.png" alt="Vision"><img src="/static/images/manpro-ai-product-pos.png" alt="Retail POS"><img src="/static/images/manpro-ai-product-transport.png" alt="Transport"><img src="/static/images/manpro-ai-product-live-studio.png" alt="Live Studio">
+            </div>
+            <small class="entry-footer">Secure, private and configured for your company.</small>
+        </section>
+        <section class="entry-panel">
+            <a class="back-site" href="/"><i class="fa-solid fa-arrow-left"></i> Back to website</a>
+            <div class="entry-card"><span class="panel-kicker"><i class="fa-solid fa-building-shield"></i> COMPANY ACCESS</span><h2>Welcome back</h2><p>Continue to your company’s secure ERP login.</p>{% if error %}<div class="entry-error"><i class="fa-solid fa-circle-exclamation"></i>{{ error }}</div>{% endif %}<form action="/company-enter" method="post"><label for="companyCode">Company Code</label><div class="code-field"><i class="fa-regular fa-building"></i><input id="companyCode" type="text" name="company_code" value="{{ company_code|default('') }}" placeholder="Example: HDFOODS" autocomplete="organization" required autofocus></div><button type="submit">Continue to login <i class="fa-solid fa-arrow-right"></i></button></form><aside class="demo-code-note"><i class="fa-solid fa-gift"></i><div><span>COMPLIMENTARY ERP DEMO</span><strong>Explore ManPro AI with a demo workspace.</strong><p>Enter the <mark>DEMO</mark> company code supplied by our team to experience the ERP at no cost.</p></div></aside></div>
+        </section>
+    </main>
+</body>
+</html>
